@@ -6,7 +6,29 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from build_dataset import build_dataset
+from build_model import build_model
+from benchmark_one_trial import benchmark_one_trial
 
+
+class Standardizer:
+    def __init__(self):
+        self.mu = None
+        self.sigma = None
+
+    def fit(self, X: np.ndarray):
+        self.mu = X.mean(axis=0, keepdims=True)
+        self.sigma = X.std(axis=0, keepdims=True) + 1e-12 # Voorkomt delingen door nul
+        return self
+
+    def transform(self, X: np.ndarray) -> np.ndarray:
+        return (X - self.mu) / self.sigma
+    
+
+def make_monic(coeffs: np.ndarray) -> np.ndarray:
+    # monisch = coëfficiënt bij de hoogste graad is 1
+    a5 = coeffs[..., 0:1]
+    return coeffs / a5
 
 def main():
     # Data
