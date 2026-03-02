@@ -7,17 +7,15 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
+
 def build_model():
     model = keras.Sequential(
         [
-            layers.Input(shape=(6,)),   # 6 inputs (coëfficiënten)
-            layers.Dense(64, activation="relu"),     # Relu: Max(0,x)
+            layers.Input(shape=(6,)),
             layers.Dense(64, activation="relu"),
-            layers.Dense(1),    # 1 output (reële wortel)
+            layers.Dense(64, activation="relu"),
+            layers.Dense(10),  # 5 roots at once: [re0..re4, im0..im4]
         ]
     )
     model.compile(optimizer=keras.optimizers.Adam(1e-3), loss="mse")
-        # model.compile bepaalt hoe het NN leert
-        # Adam is een geavanceerde gradiënt descent
-        # mse = mean squared error lossfunctie
     return model
