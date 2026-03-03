@@ -17,7 +17,7 @@ from tensorflow.keras import layers
 
 # Trechterstructuur verslag: num methode, NN => samenbrengen = specifieker
 
-# Elleboog voor BESTE epoch, seed vastzetten om te kunnen vergelijken met andere epoch en zelfde seed.
+# Elleboog voor BESTE epoch, max iter aanpassen , #layers,seed itvastzetten om te kunnen vergelijken met andere epoch en zelfde seed.
 
 # Gokken op alle wortels
 
