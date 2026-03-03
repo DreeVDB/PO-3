@@ -1,0 +1,100 @@
+import numpy as np
+
+class NeuralNetwork:
+    def __init__(self, layer_sizes):
+        """
+        Initialize neural network with specified layer sizes.
+        layer_sizes: list of integers representing neurons in each layer
+        """
+        self.layers = []
+        self.biases = []
+        
+        for i in range(len(layer_sizes) - 1):
+            # Initialize weights with random values
+            weights = np.random.randn(layer_sizes[i], layer_sizes[i + 1])
+            self.layers.append(weights)
+            
+            # Initialize biases
+            bias = np.zeros((1, layer_sizes[i + 1]))
+            self.biases.append(bias)
+    
+    def relu(self, x):
+        """ReLU activation function"""
+        return np.maximum(0, x)
+    
+    def relu_derivative(self, x):
+        """ReLU derivative for backpropagation"""
+        return (x > 0).astype(float)
+    
+    def softmax(self, x):
+        """Softmax activation function for output layer"""
+        exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+        return exp_x / np.sum(exp_x, axis=1, keepdims=True)
+    
+    def forward(self, X):
+        """Forward pass through the 3-layer network"""
+        self.activations = [X]
+        
+        # Layer 1 -> Layer 2 (hidden layer 1)
+        z1 = np.dot(X, self.layers[0]) + self.biases[0]
+        a1 = self.relu(z1)
+        self.activations.append(a1)
+        
+        # Layer 2 -> Layer 3 (hidden layer 2)
+        z2 = np.dot(a1, self.layers[1]) + self.biases[1]
+        a2 = self.relu(z2)
+        self.activations.append(a2)
+        
+        # Layer 3 -> Output
+        z3 = np.dot(a2, self.layers[2]) + self.biases[2]
+        a3 = self.softmax(z3)
+        self.activations.append(a3)
+        
+        return a3
+    
+    def backward(self, X, y, learning_rate=0.01):
+        """Backpropagation algorithm"""
+        m = X.shape[0]
+        
+        # Output layer error
+        dz3 = self.activations[3] - y
+        dw2 = np.dot(self.activations[2].T, dz3) / m
+        db2 = np.sum(dz3, axis=0, keepdims=True) / m
+        
+        # Hidden layer 2 error
+        da2 = np.dot(dz3, self.layers[2].T)
+        dz2 = da2 * self.relu_derivative(np.dot(self.activations[1], self.layers[1]) + self.biases[1])
+        dw1 = np.dot(self.activations[1].T, dz2) / m
+        db1 = np.sum(dz2, axis=0, keepdims=True) / m
+        
+        # Hidden layer 1 error
+        da1 = np.dot(dz2, self.layers[1].T)
+        dz1 = da1 * self.relu_derivative(np.dot(self.activations[0], self.layers[0]) + self.biases[0])
+        dw0 = np.dot(self.activations[0].T, dz1) / m
+        db0 = np.sum(dz1, axis=0, keepdims=True) / m
+        
+        # Update weights and biases
+        self.layers[0] -= learning_rate * dw0
+        self.layers[1] -= learning_rate * dw1
+        self.layers[2] -= learning_rate * dw2
+        self.biases[0] -= learning_rate * db0
+        self.biases[1] -= learning_rate * db1
+        self.biases[2] -= learning_rate * db2
+
+
+# Example usage:
+if __name__ == "__main__":
+    # Create a 3-layer neural network: input(784) -> hidden1(128) -> hidden2(64) -> output(10)
+    nn = NeuralNetwork([784, 128, 64, 10])
+    
+    # Sample data (you would replace this with actual training data)
+    X_train = np.random.randn(100, 784)
+    y_train = np.eye(10)[np.random.randint(0, 10, 100)]
+    
+    # Training loop
+    for epoch in range(10):
+        output = nn.forward(X_train)
+        nn.backward(X_train, y_train, learning_rate=0.01)
+        print(f"Epoch {epoch + 1}/10 completed")
+    
+    print("Training finished!")
