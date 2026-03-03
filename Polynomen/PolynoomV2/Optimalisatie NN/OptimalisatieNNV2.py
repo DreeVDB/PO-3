@@ -225,14 +225,15 @@ def rank_results(results,epoch_list, layer_list, max_iter_list):
     return (results_time, results_success)
 
 ###9) Ranking printen
+
 def print_ranking(results_time, results_success):
-    print("=== RANKING OP TIJD ===")
-    for rank, (time, batch) in enumerate(results_time, 1):
+    print("=== RANKING OP TIJD (TOP 5) ===")
+    for rank, (time, batch) in enumerate(results_time[:5], 1):
         print(f"{rank}. Tijd: {time:.4f}s - Parameters: epochs={batch[0]}, layers={batch[1]}, max_iter={batch[2]}")
 
-    print("\n=== RANKING OP CONVERGENTIE ===")
-    for rank, (success, batch) in enumerate(results_success, 1):
-        print(f"{rank}. Convergentie: {success:.4f} - Parameters: epochs={batch[0]}, layers={batch[1]}, max_iter={batch[2]}")   
+    print("\n=== RANKING OP CONVERGENTIE (TOP 5) ===")
+    for rank, (success, batch) in enumerate(results_success[:5], 1):
+        print(f"{rank}. Convergentie: {success:.4f} - Parameters: epochs={batch[0]}, layers={batch[1]}, max_iter={batch[2]}")
 
 
 ###10) Main functie
@@ -253,8 +254,8 @@ def main():
 
     scaler = Standardizer().fit(make_monic(X_train_raw))
     X_train = scaler.transform(make_monic(X_train_raw)).astype(np.float32)
-    epoch_list=[40]
-    layer_list=[5]
+    epoch_list=[15]
+    layer_list=[3]
     max_iter_list=[10*i for i in range(1, 21)]
     results = run_experiments(
         X_train, y_train,
@@ -267,7 +268,41 @@ def main():
 
     plot_results(results)
     print_ranking(*rank_results(results, epoch_list, layer_list, max_iter_list))
+
+
+    epoch_list=[15]
+    layer_list=[1,2,3,4,5]
+    max_iter_list=[100]
+    results = run_experiments(
+        X_train, y_train,
+        X_test_raw, y_test,
+        scaler,
+        epoch_list,
+        layer_list,
+        max_iter_list
+    )
+
+    plot_results(results)
+    print_ranking(*rank_results(results, epoch_list, layer_list, max_iter_list))
+
+
+    epoch_list=[5*i for i in range(1, 11)]
+    layer_list=[3]
+    max_iter_list=[100]
+    results = run_experiments(
+        X_train, y_train,
+        X_test_raw, y_test,
+        scaler,
+        epoch_list,
+        layer_list,
+        max_iter_list
+    )
+
+    plot_results(results)
+    print_ranking(*rank_results(results, epoch_list, layer_list, max_iter_list))
     return
+
+
     
 
 
