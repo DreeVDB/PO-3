@@ -3,9 +3,6 @@ from keras import layers
 import qpsolvers
 import numpy as np
 
-
-
-
 def build_model(n, m, k):
     # Het netwerk krijgt alle QP-parameters als één platte vector:
     #   Q   : n×n matrix  → n²  waarden
