@@ -137,5 +137,5 @@ def benchmark_one_trial(model, scaler: Standardizer, X_test_raw, y_test, rand_ra
 
     print(
         f"\nRandom: {t_r:.4f}s - NN totaal: {t_pred+t_nn:.4f}s"
-        f"\nWinst: {t_r-t_pred+t_nn:.4f}s, {(t_r-t_pred+t_nn)/t_r*100:.4f}%\n"
+        f"\nWinst: {t_r-(t_pred+t_nn):.4f}s, {(t_r-t_pred+t_nn)/t_r*100:.4f}%\n"
     )
