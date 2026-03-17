@@ -1,6 +1,6 @@
 import numpy as np
 import highspy as hs
-import SolveQPHS
+from SolveQPHS import SolveQPHS
 
 rng = np.random.default_rng()
 
