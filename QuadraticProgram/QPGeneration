@@ -1,4 +1,5 @@
 import numpy as np
+from qpsolvers import solve_qp
 
 rng = np.random.default_rng()
 
@@ -23,3 +24,13 @@ def random_feasible_qp(n, m, k):
     beq = Aeq @ x_hidden  # identiek dus altijd consistent
 
     return Q, c, A, b, Aeq, beq
+
+def Generate_QP_dataset(samples, n, m, k):
+    dataset = []
+    for i in range(samples):
+        Q, c, A, b, Aeq, beq = random_feasible_qp(n, m, k)
+        x = solve_qp(Q, c, A, b, Aeq, beq)
+        dataset.append((Q, c, A, b, Aeq, beq, x))
+    return dataset
+
+
