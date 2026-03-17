@@ -1,18 +1,27 @@
 import keras
-from keras import layers, regularizers
+from keras import layers
 import qpsolvers
 import numpy as np
 
 
 
 
-def build_model():
+def build_model(n, m, k):
+    # Het netwerk krijgt alle QP-parameters als één platte vector:
+    #   Q   : n×n matrix  → n²  waarden
+    #   c   : n vector    → n   waarden
+    #   A   : m×n matrix  → m·n waarden
+    #   b   : m vector    → m   waarden
+    #   Aeq : k×n matrix  → k·n waarden
+    #   beq : k vector    → k   waarden
+    # Totaal: n² + n + m·n + m + k·n + k
+    input_size = n**2 + n + m*n + m + k*n + k
     model = keras.Sequential([
-        layers.Input(shape=(6,)),   # [Q00, Q01, Q10, Q11, c0, c1]
+        layers.Input(shape=(input_size,)),
+        layers.Dense(128, activation="relu"),
+        layers.Dense(128, activation="relu"),
         layers.Dense(64, activation="relu"),
-        layers.Dense(64, activation="relu"),
-        layers.Dense(2),            # predicted x* = [x0, x1]
+        layers.Dense(n),  # predicted x*
     ])
     model.compile(optimizer=keras.optimizers.Adam(1e-3), loss="mse")
     return model
-
