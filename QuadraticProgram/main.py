@@ -5,7 +5,7 @@ from keras import layers
 import numpy as np
 
 from QPGeneration import Generate_QP_dataset
-from èNeuraalNetwerk import build_model
+from NeuraalNetwerk import build_model
 
 
 def flatten_sample(Q, c, A, b, Aeq, beq):
@@ -30,7 +30,7 @@ def main():
     k = 3
     samples = 1000
     val_split = 0.2
-    epochs = 100
+    epochs = 10
     batch_size = 32
 
     print("Genereer dataset...")
