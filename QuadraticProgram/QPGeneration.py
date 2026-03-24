@@ -48,7 +48,7 @@ def Generate_QP_dataset(samples, n, m, k):
     for i in range(samples):
         Q, c, A, b, Aeq, beq = random_feasible_qp(n, m, k)
         x = SolveQP(Q, c, A, b, Aeq, beq)
-        dataset.append((Q, c, A, b, Aeq, beq, x))
+        dataset.append([(Q, c, A, b, Aeq, beq), x])
     return dataset
 
 data=Generate_QP_dataset(1, 2, 6, 3)
