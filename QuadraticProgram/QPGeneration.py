@@ -7,6 +7,7 @@ from SolveQP import SolveQP
 import casadi as ca
 import numpy as np
 from SolveQPCasInt import SolveQPCasInt
+from SolveQPCasOases import SolveQPCasOases
 
 rng = np.random.default_rng()
 
@@ -37,10 +38,10 @@ def Generate_QP_dataset(samples, n, ineq, eq):
     dataset = []
     for i in range(samples):
         Q, c, A, b, Aeq, beq = random_feasible_qp(n, ineq, eq)
-        x = SolveQPCasInt(Q, c, A, b, Aeq, beq)
+        x = SolveQPCasOases(Q, c, A, b, Aeq, beq)
         dataset.append([(Q, c, A, b, Aeq, beq), x])
     return dataset
 
-data=Generate_QP_dataset(1,6,3,3)
+data=Generate_QP_dataset(1,2,3,1)
 print(data)
 
