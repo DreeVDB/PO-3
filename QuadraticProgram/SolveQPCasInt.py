@@ -1,7 +1,91 @@
 import casadi as ca
 import numpy as np
+from time import perf_counter
 
-def SolveQPCasInt(Q, c, A, b, Aeq, beq):
+
+_SOLVER_CACHE = {}
+
+
+def _pack_qp_parameters(Q, c, A, b, Aeq, beq):
+    return np.concatenate([Q.reshape(-1), c, A.reshape(-1), b, Aeq.reshape(-1), beq])
+
+
+def _reshape_row_major(vector, rows, cols):
+    if rows == 0 or cols == 0:
+        return ca.SX.zeros(rows, cols)
+    return ca.transpose(ca.reshape(vector, cols, rows))
+
+
+def _unpack_symbolic_parameters(parameters, n, m, k):
+    offset = 0
+
+    q_size = n * n
+    Q = _reshape_row_major(parameters[offset : offset + q_size], n, n)
+    offset += q_size
+
+    c = parameters[offset : offset + n]
+    offset += n
+
+    a_size = m * n
+    A = _reshape_row_major(parameters[offset : offset + a_size], m, n)
+    offset += a_size
+
+    b = parameters[offset : offset + m]
+    offset += m
+
+    aeq_size = k * n
+    Aeq = _reshape_row_major(parameters[offset : offset + aeq_size], k, n)
+    offset += aeq_size
+
+    beq = parameters[offset : offset + k]
+    return Q, c, A, b, Aeq, beq
+
+
+def _build_solver(n, m, k):
+    cache_key = (n, m, k)
+    if cache_key in _SOLVER_CACHE:
+        return _SOLVER_CACHE[cache_key]
+
+    x = ca.MX.sym("x", n)
+    parameter_size = n * n + n + m * n + m + k * n + k
+    p = ca.MX.sym("p", parameter_size)
+    Q, c, A, b, Aeq, beq = _unpack_symbolic_parameters(p, n, m, k)
+
+    objective = 0.5 * ca.dot(x, ca.mtimes(Q, x)) + ca.dot(c, x)
+
+    constraint_blocks = []
+    lbg = []
+    ubg = []
+    if m > 0:
+        constraint_blocks.append(ca.mtimes(A, x) - b)
+        lbg.extend([-ca.inf] * m)
+        ubg.extend([0.0] * m)
+    if k > 0:
+        constraint_blocks.append(ca.mtimes(Aeq, x) - beq)
+        lbg.extend([0.0] * k)
+        ubg.extend([0.0] * k)
+
+    constraints = ca.vertcat(*constraint_blocks) if constraint_blocks else ca.MX.zeros(0, 1)
+    nlp = {"x": x, "p": p, "f": objective, "g": constraints}
+
+    options = {
+        "ipopt.print_level": 0,
+        "print_time": False,
+        "ipopt.tol": 1e-10,
+        "ipopt.acceptable_tol": 1e-6,
+        "ipopt.constr_viol_tol": 1e-10,
+        "ipopt.compl_inf_tol": 1e-10,
+        "ipopt.dual_inf_tol": 1e-10,
+        "ipopt.max_iter": 2000,
+    }
+
+    solver = ca.nlpsol(f"solver_ipopt_{n}_{m}_{k}", "ipopt", nlp, options)
+    cached = (solver, lbg, ubg)
+    _SOLVER_CACHE[cache_key] = cached
+    return cached
+
+
+def SolveQPCasInt(Q, c, A, b, Aeq, beq, x0=None, return_stats=False):
     Q = np.array(Q, dtype=float)
     c = np.array(c, dtype=float)
     A = np.array(A, dtype=float)
@@ -10,46 +94,31 @@ def SolveQPCasInt(Q, c, A, b, Aeq, beq):
     beq = np.array(beq, dtype=float)
 
     n = Q.shape[0]
-    x = ca.MX.sym("x", n)
+    m = A.shape[0]
+    k = Aeq.shape[0]
+    solver, lbg, ubg = _build_solver(n, m, k)
 
-    # Objective
-    obj = 0.5 * ca.dot(x, Q @ x) + ca.dot(c, x)
-
-    # Constraints
-    g_list = []
-    if A.shape[0] > 0:
-        g_list.append(A @ x - b)
-    if Aeq.shape[0] > 0:
-        g_list.append(Aeq @ x - beq)
-    g = ca.vertcat(*g_list) if g_list else ca.MX([])
-
-    lbg = []
-    ubg = []
-    if A.shape[0] > 0:
-        lbg += [-ca.inf] * A.shape[0]
-        ubg += [0.0] * A.shape[0]
-    if Aeq.shape[0] > 0:
-        lbg += [0.0] * Aeq.shape[0]
-        ubg += [0.0] * Aeq.shape[0]
-
-    # Solver options (hier pas je methode, tolerantie, max iter aan)
-    options = {
-        "ipopt.print_level": 0,
-        "print_time": False,
-
-        # Toleranties voor nauwkeurigheid van de oplossing
-        "ipopt.tol": 1e-10,
-        "ipopt.acceptable_tol": 1e-6,
-        "ipopt.constr_viol_tol": 1e-10,
-        "ipopt.compl_inf_tol": 1e-10,
-        "ipopt.dual_inf_tol": 1e-10,
-
-        # Max iterations
-        "ipopt.max_iter": 2000,
+    solver_inputs = {
+        "p": _pack_qp_parameters(Q, c, A, b, Aeq, beq),
+        "lbg": lbg,
+        "ubg": ubg,
     }
+    if x0 is not None:
+        solver_inputs["x0"] = np.array(x0, dtype=float)
 
-    nlp = {"x": x, "f": obj, "g": g}
-    solver = ca.nlpsol("solver", "ipopt", nlp, options)
-    sol = solver(lbg=lbg, ubg=ubg)
+    start_time = perf_counter()
+    sol = solver(**solver_inputs)
+    solve_time = perf_counter() - start_time
 
-    return np.array(sol["x"]).reshape(-1)
+    solution = np.array(sol["x"]).reshape(-1)
+    if not return_stats:
+        return solution
+
+    solver_stats = solver.stats()
+    stats = {
+        "success": bool(solver_stats.get("success", False)),
+        "iter_count": int(solver_stats.get("iter_count", 0)),
+        "return_status": solver_stats.get("return_status", ""),
+        "solve_time_seconds": solve_time,
+    }
+    return solution, stats

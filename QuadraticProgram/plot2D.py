@@ -114,6 +114,69 @@ def compute_plot_bounds(history, x_hidden):
     return x_min, x_max, y_min, y_max
 
 
+def intersect_boundaries(a_row_1, b_row_1, a_row_2, b_row_2, tol=1e-10):
+    system = np.vstack([a_row_1, a_row_2])
+    if abs(np.linalg.det(system)) < tol:
+        return None
+    rhs = np.array([b_row_1, b_row_2], dtype=float)
+    return np.linalg.solve(system, rhs)
+
+
+def is_feasible_point(x, A, b, Aeq, beq, tol=1e-7):
+    if A.size and np.any(A @ x - b > tol):
+        return False
+    if Aeq.size and np.any(np.abs(Aeq @ x - beq) > tol):
+        return False
+    return True
+
+
+def compute_feasible_vertices(A, b, Aeq, beq):
+    if A.shape[1] != 2:
+        return np.empty((0, 2))
+
+    vertices = []
+
+    if Aeq.size == 0:
+        for i in range(len(A)):
+            for j in range(i + 1, len(A)):
+                point = intersect_boundaries(A[i], b[i], A[j], b[j])
+                if point is not None and is_feasible_point(point, A, b, Aeq, beq):
+                    vertices.append(point)
+    elif Aeq.shape[0] == 1:
+        eq_row = Aeq[0]
+        eq_rhs = beq[0]
+        for i in range(len(A)):
+            point = intersect_boundaries(A[i], b[i], eq_row, eq_rhs)
+            if point is not None and is_feasible_point(point, A, b, Aeq, beq):
+                vertices.append(point)
+    else:
+        point, *_ = np.linalg.lstsq(Aeq, beq, rcond=None)
+        if is_feasible_point(point, A, b, Aeq, beq):
+            vertices.append(point)
+
+    if not vertices:
+        return np.empty((0, 2))
+
+    vertices = np.unique(np.round(np.array(vertices), decimals=9), axis=0)
+    return vertices
+
+
+def compute_overview_bounds(history, x_hidden, optimum_guess, feasible_vertices):
+    point_sets = [history, x_hidden.reshape(1, -1), optimum_guess.reshape(1, -1)]
+    if feasible_vertices.size:
+        point_sets.append(feasible_vertices)
+
+    points = np.vstack(point_sets)
+    mins = points.min(axis=0)
+    maxs = points.max(axis=0)
+    span = np.maximum(maxs - mins, 1.0)
+    padding = 0.28 * span
+
+    lower = mins - padding
+    upper = maxs + padding
+    return lower[0], upper[0], lower[1], upper[1]
+
+
 def draw_inequalities(ax, A, b, x_grid, y_grid):
     X, Y = np.meshgrid(x_grid, y_grid)
 
@@ -168,85 +231,90 @@ def draw_objective_contours(ax, Q, c, x_grid, y_grid):
     ax.contour(X, Y, values, levels=12, colors="0.75", linewidths=0.8)
 
 
-def plot_problem_iterations(
-    problem_index,
-    Q,
-    c,
-    A,
-    b,
-    Aeq,
-    beq,
-    x_hidden,
-    history,
-    save_dir=None,
-):
-    x_min, x_max, y_min, y_max = compute_plot_bounds(history, x_hidden)
+def draw_feasible_region(ax, feasible_vertices):
+    if feasible_vertices.shape[0] < 3:
+        return
+
+    center = feasible_vertices.mean(axis=0)
+    angles = np.arctan2(feasible_vertices[:, 1] - center[1], feasible_vertices[:, 0] - center[0])
+    ordered = feasible_vertices[np.argsort(angles)]
+    ax.fill(ordered[:, 0], ordered[:, 1], color="#dff2df", alpha=0.22, zorder=0)
+
+
+def plot_problem_overview(ax, problem_index, Q, c, A, b, Aeq, beq, x_hidden, history):
+    optimum_guess = history[-1]
+    feasible_vertices = compute_feasible_vertices(A, b, Aeq, beq)
+    x_min, x_max, y_min, y_max = compute_overview_bounds(
+        history,
+        x_hidden,
+        optimum_guess,
+        feasible_vertices,
+    )
     x_grid = np.linspace(x_min, x_max, 300)
     y_grid = np.linspace(y_min, y_max, 300)
 
-    panel_count = len(history)
-    cols = min(4, math.ceil(math.sqrt(panel_count)))
-    rows = math.ceil(panel_count / cols)
+    draw_feasible_region(ax, feasible_vertices)
+    draw_objective_contours(ax, Q, c, x_grid, y_grid)
+    draw_inequalities(ax, A, b, x_grid, y_grid)
+    draw_equalities(ax, Aeq, beq, x_grid, y_grid)
 
-    fig, axes = plt.subplots(rows, cols, figsize=(5.2 * cols, 5.0 * rows), squeeze=False)
-    fig.suptitle(f"QP probleem {problem_index}: alle iteraties op een scherm", fontsize=15)
+    ax.plot(history[:, 0], history[:, 1], color="black", linewidth=1.4, alpha=0.8)
+    if len(history) > 1:
+        ax.scatter(history[:-1, 0], history[:-1, 1], color="black", s=18, alpha=0.65)
+    ax.scatter(history[-1, 0], history[-1, 1], color="red", s=70, zorder=5)
+    ax.scatter(optimum_guess[0], optimum_guess[1], color="green", marker="*", s=150, zorder=6)
+    ax.scatter(x_hidden[0], x_hidden[1], color="royalblue", marker="x", s=70, zorder=6)
 
-    optimum_guess = history[-1]
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+    ax.set_aspect("equal", adjustable="box")
+    ax.grid(True, alpha=0.25)
+    ax.set_xlabel("x1")
+    ax.set_ylabel("x2")
 
-    for iteration, ax in enumerate(axes.flat):
-        if iteration >= panel_count:
-            ax.axis("off")
-            continue
+    value = objective_value(Q, c, optimum_guess)
+    violation = max_violation(A, b, Aeq, beq, optimum_guess)
+    ax.set_title(
+        f"QP {problem_index}\n"
+        f"f(x) = {value:.3f}, max violatie = {violation:.2e}"
+    )
 
-        draw_objective_contours(ax, Q, c, x_grid, y_grid)
-        draw_inequalities(ax, A, b, x_grid, y_grid)
-        draw_equalities(ax, Aeq, beq, x_grid, y_grid)
 
-        path = history[: iteration + 1]
-        ax.plot(path[:, 0], path[:, 1], color="black", linewidth=1.2, alpha=0.8)
-        ax.scatter(path[:-1, 0], path[:-1, 1], color="black", s=20, alpha=0.65)
-        ax.scatter(path[-1, 0], path[-1, 1], color="red", s=70, zorder=5)
-        ax.scatter(optimum_guess[0], optimum_guess[1], color="green", marker="*", s=150, zorder=6)
-        ax.scatter(x_hidden[0], x_hidden[1], color="royalblue", marker="x", s=70, zorder=6)
+def plot_problem_batch(batch_index, problems, save_dir=None):
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10), squeeze=False)
+    fig.suptitle(f"Vier QP-problemen op een scherm ({batch_index})", fontsize=15)
 
-        ax.set_xlim(x_min, x_max)
-        ax.set_ylim(y_min, y_max)
-        ax.set_aspect("equal", adjustable="box")
-        ax.grid(True, alpha=0.25)
-        ax.set_xlabel("x1")
-        ax.set_ylabel("x2")
+    for ax, problem in zip(axes.flat, problems):
+        plot_problem_overview(ax, **problem)
 
-        value = objective_value(Q, c, path[-1])
-        violation = max_violation(A, b, Aeq, beq, path[-1])
-        ax.set_title(
-            f"Iteratie {iteration}\n"
-            f"f(x) = {value:.3f}, max violatie = {violation:.2e}"
-        )
+    for ax in axes.flat[len(problems):]:
+        ax.axis("off")
 
     handles = [
         plt.Line2D([0], [0], color="black", linewidth=1.2, label="pad van de iteraties"),
-        plt.Line2D([0], [0], marker="o", color="w", markerfacecolor="red", markersize=8, label="huidige gok"),
+        plt.Line2D([0], [0], marker="o", color="w", markerfacecolor="red", markersize=8, label="laatste rode gok"),
         plt.Line2D([0], [0], marker="*", color="w", markerfacecolor="green", markersize=12, label="laatste gok"),
         plt.Line2D([0], [0], marker="x", color="royalblue", linestyle="None", markersize=8, label="verborgen feasible punt"),
+        plt.Line2D([0], [0], color="#dff2df", linewidth=8, alpha=0.6, label="feasible gebied indien begrensd"),
     ]
     fig.legend(handles=handles, loc="upper right")
     fig.tight_layout()
 
     if save_dir is not None:
         save_dir.mkdir(parents=True, exist_ok=True)
-        output_path = save_dir / f"qp_probleem_{problem_index}.png"
+        output_path = save_dir / f"qp_scherm_{batch_index}.png"
         fig.savefig(output_path, dpi=180, bbox_inches="tight")
 
     return fig
 
 
 def plot_generated_qps(
-    samples=2,
+    samples=4,
     n=2,
     m=4,
     k=1,
     iterations=8,
-    seed=7,
+    seed=None,
     save_dir=None,
 ):
     if n != 2:
@@ -255,28 +323,34 @@ def plot_generated_qps(
     rng = np.random.default_rng(seed)
     output_dir = Path(save_dir) if save_dir is not None else None
     figures = []
+    problems = []
 
     for problem_index in range(1, samples + 1):
         Q, c, A, b, Aeq, beq, x_hidden = random_feasible_qp(n, m, k, rng)
         x0 = rng.normal(size=n) + np.array([2.0, -2.0])
         history = solve_with_history(Q, c, A, b, Aeq, beq, x0, iterations=iterations)
-        fig = plot_problem_iterations(
-            problem_index,
-            Q,
-            c,
-            A,
-            b,
-            Aeq,
-            beq,
-            x_hidden,
-            history,
-            save_dir=output_dir,
+
+        problems.append(
+            {
+                "problem_index": problem_index,
+                "Q": Q,
+                "c": c,
+                "A": A,
+                "b": b,
+                "Aeq": Aeq,
+                "beq": beq,
+                "x_hidden": x_hidden,
+                "history": history,
+            }
         )
-        figures.append(fig)
+
+    for batch_index, start in enumerate(range(0, len(problems), 4), start=1):
+        batch = problems[start : start + 4]
+        figures.append(plot_problem_batch(batch_index, batch, save_dir=output_dir))
 
     return figures
 
 
 if __name__ == "__main__":
-    plot_generated_qps(samples=2, n=2, m=4, k=1, iterations=8, seed=7)
+    plot_generated_qps(samples=4, n=2, m=4, k=1, iterations=8)
     plt.show()

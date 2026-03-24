@@ -4,8 +4,12 @@ import keras
 from keras import layers
 import numpy as np
 
-from QPGeneration import Generate_QP_dataset
-from NeuraalNetwerk import build_model
+try:
+    from QPGeneration import Generate_QP_dataset
+    from NeuraalNetwerk import build_model
+except ModuleNotFoundError:
+    from QuadraticProgram.QPGeneration import Generate_QP_dataset
+    from QuadraticProgram.NeuraalNetwerk import build_model
 
 
 def flatten_sample(Q, c, A, b, Aeq, beq):

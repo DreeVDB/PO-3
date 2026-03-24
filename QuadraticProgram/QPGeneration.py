@@ -1,47 +1,57 @@
 import numpy as np
-import highspy as hs
-import osqp
-import numpy as np
-import scipy.sparse as sp
-from SolveQP import SolveQP
-import casadi as ca
-import numpy as np
-from SolveQPCasInt import SolveQPCasInt
-from SolveQPCasOases import SolveQPCasOases
+
+try:
+    from SolveQPCasInt import SolveQPCasInt
+    from SolveQPCasOases import SolveQPCasOases
+except ModuleNotFoundError:
+    from QuadraticProgram.SolveQPCasInt import SolveQPCasInt
+    from QuadraticProgram.SolveQPCasOases import SolveQPCasOases
+
 
 rng = np.random.default_rng()
 
 
-def random_feasible_qp(n, ineq, eq):
-    # 1. Q is positief semidefinitief
-    B = rng.normal(size=(n, n))
+def random_feasible_qp(n, ineq, eq, rng_instance=None):
+    rng_local = rng if rng_instance is None else rng_instance
+
+    B = rng_local.normal(size=(n, n))
     Q = B.T @ B
 
-    # 2. lineaire term
-    c = rng.normal(size=n)
+    c = rng_local.normal(size=n)
+    x_hidden = rng_local.normal(size=n)
 
-    # 3. kies een verborgen punt dat alles feasible maakt
-    x_hidden = rng.normal(size=n)
+    A = rng_local.normal(size=(ineq, n))
+    b = A @ x_hidden + rng_local.uniform(0.1, 1.0, size=ineq)
 
-    # 4. ongelijkheid Ax ≤ b
-    A = rng.normal(size=(ineq, n))
-    # b wordt gekozen zodat A x_hidden ≤ b altijd waar is
-    b = A @ x_hidden + rng.uniform(0.1, 1.0, size=ineq)
-
-    # 5. gelijkheid Aeq x = beq
-    Aeq = rng.normal(size=(eq, n))
-    beq = Aeq @ x_hidden  # identiek dus altijd consistent
+    Aeq = rng_local.normal(size=(eq, n))
+    beq = Aeq @ x_hidden
 
     return Q, c, A, b, Aeq, beq
 
-def Generate_QP_dataset(samples, n, ineq, eq):
+
+def Generate_QP_dataset(samples, n, ineq, eq, solver="interior", return_solver_stats=False, rng_instance=None):
+    if solver == "interior":
+        solver_fn = SolveQPCasInt
+    elif solver == "oases":
+        solver_fn = SolveQPCasOases
+    else:
+        raise ValueError("solver moet 'interior' of 'oases' zijn.")
+
     dataset = []
-    for i in range(samples):
-        Q, c, A, b, Aeq, beq = random_feasible_qp(n, ineq, eq)
-        x = SolveQPCasOases(Q, c, A, b, Aeq, beq)
-        dataset.append([(Q, c, A, b, Aeq, beq), x])
+    rng_local = rng if rng_instance is None else rng_instance
+
+    for _ in range(samples):
+        Q, c, A, b, Aeq, beq = random_feasible_qp(n, ineq, eq, rng_instance=rng_local)
+        if return_solver_stats:
+            x, stats = solver_fn(Q, c, A, b, Aeq, beq, return_stats=True)
+            dataset.append([(Q, c, A, b, Aeq, beq), x, stats])
+        else:
+            x = solver_fn(Q, c, A, b, Aeq, beq)
+            dataset.append([(Q, c, A, b, Aeq, beq), x])
+
     return dataset
 
-data=Generate_QP_dataset(1,2,3,1)
-print(data)
 
+if __name__ == "__main__":
+    data = Generate_QP_dataset(1, 2, 3, 1, solver="interior")
+    print(data)
