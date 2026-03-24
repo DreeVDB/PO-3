@@ -9,10 +9,10 @@ try:
     from QPGeneration import Generate_QP_dataset
     from SolveQPCasOases import SolveQPCasOases
 except ModuleNotFoundError:
-    from QuadraticProgram.main import flatten_sample
-    from QuadraticProgram.NeuraalNetwerk import build_model
-    from QuadraticProgram.QPGeneration import Generate_QP_dataset
-    from QuadraticProgram.SolveQPCasOases import SolveQPCasOases
+    from main import flatten_sample
+    from NeuraalNetwerk import build_model
+    from QPGeneration import Generate_QP_dataset
+    from SolveQPCasOases import SolveQPCasOases
 
 
 def build_benchmark_dataset(samples, n, m, k, seed=None):
