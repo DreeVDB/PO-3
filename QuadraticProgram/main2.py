@@ -1,5 +1,6 @@
 from pathlib import Path
 from statistics import mean
+from time import perf_counter
 
 import numpy as np
 
@@ -39,13 +40,31 @@ def benchmark_oases(problems, initial_guesses):
     for problem, x0 in zip(problems, initial_guesses):
         Q, c, A, b, Aeq, beq = problem
         _, stats = SolveQPCasOases(Q, c, A, b, Aeq, beq, x0=x0, return_stats=True)
+        stats["wall_time_seconds"] = stats["solve_time_seconds"]
+        stats_list.append(stats)
+    return stats_list
+
+
+def benchmark_oases_with_model(problems, model):
+    stats_list = []
+    for problem in problems:
+        sample = flatten_sample(*problem).reshape(1, -1)
+
+        predict_start = perf_counter()
+        x0 = model.predict(sample, verbose=0)[0]
+        predict_time = perf_counter() - predict_start
+
+        Q, c, A, b, Aeq, beq = problem
+        _, stats = SolveQPCasOases(Q, c, A, b, Aeq, beq, x0=x0, return_stats=True)
+        stats["predict_time_seconds"] = predict_time
+        stats["wall_time_seconds"] = predict_time + stats["solve_time_seconds"]
         stats_list.append(stats)
     return stats_list
 
 
 def summarize_stats(name, stats_list):
-    total_time = sum(stat["solve_time_seconds"] for stat in stats_list)
-    avg_time = mean(stat["solve_time_seconds"] for stat in stats_list)
+    total_time = sum(stat.get("wall_time_seconds", stat["solve_time_seconds"]) for stat in stats_list)
+    avg_time = mean(stat.get("wall_time_seconds", stat["solve_time_seconds"]) for stat in stats_list)
     avg_iter = mean(stat["iter_count"] for stat in stats_list)
     success_rate = 100.0 * mean(1.0 if stat["success"] else 0.0 for stat in stats_list)
 
@@ -59,14 +78,14 @@ def summarize_stats(name, stats_list):
 
 
 def print_summary_table(summaries):
-    header = f"{'Methode':<28}{'Totale tijd (s)':>18}{'Gem. tijd (ms)':>18}{'Gem. iteraties':>18}{'Succes (%)':>14}"
+    header = f"{'Methode':<28}{'Totale tijd (s)':>18}{'Gem. tijd (s)':>18}{'Gem. iteraties':>18}{'Succes (%)':>14}"
     print(header)
     print("-" * len(header))
     for summary in summaries:
         print(
             f"{summary['name']:<28}"
             f"{summary['total_time']:>18.3f}"
-            f"{1000.0 * summary['avg_time']:>18.3f}"
+            f"{summary['avg_time']:>18.3f}"
             f"{summary['avg_iter']:>18.2f}"
             f"{summary['success_rate']:>14.2f}"
         )
@@ -79,8 +98,8 @@ def train_warm_start_model(X, y, n, m, k, epochs=12, batch_size=64):
 
 
 def main(k=1):
-    samples = 4000
-    n = 3
+    samples = 200
+    n = 10
     m = 4
     epochs = 12
     batch_size = 64
@@ -91,10 +110,11 @@ def main(k=1):
 
     print(f"Genereer {samples} QP-problemen met n={n}, m={m}, k={k}...")
     problems, X, y, interior_stats = build_benchmark_dataset(samples, n, m, k, seed=seed)
+    for stats in interior_stats:
+        stats["wall_time_seconds"] = stats["solve_time_seconds"]
 
     print("Train neuraal netwerk voor warm start...")
     model = train_warm_start_model(X, y, n, m, k, epochs=epochs, batch_size=batch_size)
-    nn_warm_starts = model.predict(X, batch_size=batch_size, verbose=0)
 
     rng = np.random.default_rng(seed + 1)
     random_warm_starts = rng.uniform(-3.0, 3.0, size=(samples, n))
@@ -102,8 +122,8 @@ def main(k=1):
     print("Benchmark qpOASES met random startgok...")
     random_stats = benchmark_oases(problems, random_warm_starts)
 
-    print("Benchmark qpOASES met neural network warm start...")
-    nn_stats = benchmark_oases(problems, nn_warm_starts)
+    print("Benchmark qpOASES met neural network warm start, 1 QP per predict-call...")
+    nn_stats = benchmark_oases_with_model(problems, model)
 
     summaries = [
         summarize_stats("Interior point (IPOPT)", interior_stats),
