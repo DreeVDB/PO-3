@@ -13,42 +13,36 @@ def SolveQPCasOases(Q, c, A, b, Aeq, beq):
     m = A.shape[0]
     k = Aeq.shape[0]
 
-    # Combineer inequality en equality constraints
-    # A x <= b        → lower bound = -∞, upper bound = b
-    # Aeq x = beq     → lower = upper = beq
+    # Inequalities (Ax ≤ b) + equalities (Aeq x = beq)
     A_total = np.vstack([A, Aeq])
 
     lba = np.concatenate([
-        -np.inf * np.ones(m),   # ongelijkheden
-        beq                     # gelijkheden
+        -np.inf * np.ones(m),    # A x ≥ -∞
+        beq                      # Aeq x ≥ beq
     ])
-
     uba = np.concatenate([
-        b,                      # ongelijkheden
-        beq                     # gelijkheden
+        b,                       # A x ≤ b
+        beq                      # Aeq x ≤ beq
     ])
 
-    # QP structure
+    # QPOASES expects:
+    # H, g, A, lbx, ubx, lba, uba
     qp = {
-        "h": ca.DM(Q),              # Hessian
-        "g": ca.DM(c),              # linear term
-        "a": ca.DM(A_total),        # constraint matrix
-        "lba": ca.DM(lba),          # constraint lower bounds
-        "uba": ca.DM(uba),          # constraint upper bounds
+        "H": ca.DM(Q),
+        "g": ca.DM(c),
+        "A": ca.DM(A_total),
+        "lba": ca.DM(lba),
+        "uba": ca.DM(uba),
         "lbx": -ca.inf * np.ones(n),
-        "ubx":  ca.inf * np.ones(n),
+        "ubx":  ca.inf * np.ones(n)
     }
 
-    # QPOASES options
     opts = {
-        "printLevel": "none",    # geen output
-        "enableRegularisation": True,
-        "maxIter": 1000,         # max aantal iteraties
-        "terminationTolerance": 1e-10,  # tolerantie
-        "boundRelaxation": 1e-12,
+        "printLevel": "none",
+        "maxIter": 1000,
+        "terminationTolerance": 1e-10
     }
 
-    # Maak QPOASES solver
     solver = ca.qpsol("solver", "qpoases", qp, opts)
 
     sol = solver()
