@@ -85,7 +85,7 @@ def benchmark_single_polynomial(
     X_nn = scaler.transform(make_monic(coeffs)).astype(np.float32)
 
     t0 = time.perf_counter()
-    x0_nn_vec = model(X_nn, training=False).numpy()[0]
+    x0_nn_vec = model(X_nn, training=False).numpy()[0] 
     t_pred = time.perf_counter() - t0
 
     t0 = time.perf_counter()
