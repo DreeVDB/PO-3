@@ -5,7 +5,7 @@ from keras import layers
 import numpy as np
 
 from QuadraticProgram.QPGeneration import Generate_QP_dataset
-from QuadraticProgram.build_model2_2 import build_model
+from QuadraticProgram.NeuraalNetwerk import build_model
 
 
 def flatten_sample(Q, c, A, b, Aeq, beq):
