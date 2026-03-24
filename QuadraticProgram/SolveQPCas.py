@@ -1,41 +1,66 @@
+
 import casadi as ca
 import numpy as np
 
 def SolveQPCas(Q, c, A, b, Aeq, beq):
+    """
+    Lost een convex QP op:
+        minimize 0.5 xᵀ Q x + cᵀ x
+        subject to A x <= b
+                   Aeq x = beq
+    met CasADi's NLP solver (ipopt).
+    """
+
+    Q = np.array(Q, dtype=float)
+    c = np.array(c, dtype=float)
+    A = np.array(A, dtype=float)
+    b = np.array(b, dtype=float)
+    Aeq = np.array(Aeq, dtype=float)
+    beq = np.array(beq, dtype=float)
+
     n = Q.shape[0]
 
-    # CasADi QP datastructuur
-    qp = {}
+    # CasADi variabele
+    x = ca.MX.sym("x", n)
 
-    # 0.5 xᵀ Q x + cᵀ x
-    qp['H'] = ca.DM(Q)
-    qp['g'] = ca.DM(c)
+    # QP-doelstelling
+    obj = 0.5 * ca.dot(x, Q @ x) + ca.dot(c, x)
 
-    # Combineer A en Aeq
-    A_total = A if Aeq is None else np.vstack([A, Aeq])
-    qp['A'] = ca.DM(A_total)
+    # Constraints samenvoegen
+    g_list = []
 
-    # Lower en upper bounds voor constraints
-    m = A.shape[0]
+    # Ongelijkheden A x <= b → A x - b <= 0
+    if A.shape[0] > 0:
+        g_list.append(A @ x - b)
 
-    # Ongelijkheden: A x ≤ b  ->  laten we lba = -inf, uba = b
-    lba = -ca.inf*m
-    uba = b
+    # Gelijkheden Aeq x = beq
+    if Aeq.shape[0] > 0:
+        g_list.append(Aeq @ x - beq)
 
-    # Gelijkheden: Aeq x = beq -> lba = uba = beq
-    if Aeq is not None:
-        k = Aeq.shape[0]
-        lba = np.concatenate([lba, beq])
-        uba = np.concatenate([uba, beq])
+    g = ca.vertcat(*g_list) if len(g_list) > 0 else ca.MX([])
 
-    qp['lba'] = ca.DM(lba)
-    qp['uba'] = ca.DM(uba)
+    # Bounds voor constraints
+    ng = g.size1()
 
-    # Variabelen onbegrensd
-    qp['lbx'] = -ca.inf*n
-    qp['ubx'] = ca.inf*n
+    # Ongelijkheden → [-∞, 0]
+    lbg = []
+    ubg = []
 
-    # QP oplossen
-    sol = ca.qp(qp)
+    if A.shape[0] > 0:
+        lbg += [-ca.inf] * A.shape[0]
+        ubg += [0.0] * A.shape[0]
 
-    return np.array(sol['x']).reshape(-1)
+    # Gelijkheden → [0, 0]
+    if Aeq.shape[0] > 0:
+        lbg += [0.0] * Aeq.shape[0]
+        ubg += [0.0] * Aeq.shape[0]
+
+    # Maak NLP
+    nlp = {"x": x, "f": obj, "g": g}
+    solver = ca.nlpsol("solver", "ipopt", nlp,
+                       {"ipopt.print_level": 0,
+                        "print_time": False})
+
+    sol = solver(lbg=lbg, ubg=ubg)
+
+    return np.array(sol["x"]).reshape(-1)

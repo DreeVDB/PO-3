@@ -11,7 +11,7 @@ from SolveQPCas import SolveQPCas
 rng = np.random.default_rng()
 
 
-def random_feasible_qp(n, m, k):
+def random_feasible_qp(n, ineq, eq):
     # 1. Q is positief semidefinitief
     B = rng.normal(size=(n, n))
     Q = B.T @ B
@@ -23,20 +23,20 @@ def random_feasible_qp(n, m, k):
     x_hidden = rng.normal(size=n)
 
     # 4. ongelijkheid Ax ≤ b
-    A = rng.normal(size=(m, n))
+    A = rng.normal(size=(ineq, n))
     # b wordt gekozen zodat A x_hidden ≤ b altijd waar is
-    b = A @ x_hidden + rng.uniform(0.1, 1.0, size=m)
+    b = A @ x_hidden + rng.uniform(0.1, 1.0, size=ineq)
 
     # 5. gelijkheid Aeq x = beq
-    Aeq = rng.normal(size=(k, n))
+    Aeq = rng.normal(size=(eq, n))
     beq = Aeq @ x_hidden  # identiek dus altijd consistent
 
     return Q, c, A, b, Aeq, beq
 
-def Generate_QP_dataset(samples, n, m, k):
+def Generate_QP_dataset(samples, n, ineq, eq):
     dataset = []
     for i in range(samples):
-        Q, c, A, b, Aeq, beq = random_feasible_qp(n, m, k)
+        Q, c, A, b, Aeq, beq = random_feasible_qp(n, ineq, eq)
         x = SolveQPCas(Q, c, A, b, Aeq, beq)
         dataset.append([(Q, c, A, b, Aeq, beq), x])
     return dataset
