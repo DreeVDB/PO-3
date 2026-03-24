@@ -3,6 +3,10 @@ import highspy as hs
 import osqp
 import numpy as np
 import scipy.sparse as sp
+from SolveQP import SolveQP
+import casadi as ca
+import numpy as np
+from SolveQPCas import SolveQPCas
 
 rng = np.random.default_rng()
 
