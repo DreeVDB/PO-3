@@ -19,7 +19,7 @@ def SolveQPHS(Q, c, A, b, Aeq, beq):
     model = hs.Highs()
 
     # Voeg variabelen toe (n variabelen)
-    model.add_variables(n)
+    model.addVariables(n)
 
     # Stel de doelstelling in: min 0.5 x^T Q x + c^T x
     model.set_objective(Q, c)
