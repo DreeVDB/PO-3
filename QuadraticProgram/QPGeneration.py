@@ -10,20 +10,6 @@ from SolveQPCas import SolveQPCas
 
 rng = np.random.default_rng()
 
-def SolveQP(Q, c, A, b, Aeq, beq):
-    Q = sp.csc_matrix(Q)
-    A_total = sp.vstack([A, Aeq]).tocsc()
-
-    # inequality: A x <= b
-    # equality: Aeq x = beq -> encoded as lower = upper = beq
-    l = np.hstack([-np.inf*np.ones(len(b)), beq])
-    u = np.hstack([b, beq])
-
-    prob = osqp.OSQP()
-    prob.setup(P=Q, q=c, A=A_total, l=l, u=u, verbose=False)
-    res = prob.solve()
-
-    return res.x
 
 def random_feasible_qp(n, m, k):
     # 1. Q is positief semidefinitief
@@ -51,7 +37,7 @@ def Generate_QP_dataset(samples, n, m, k):
     dataset = []
     for i in range(samples):
         Q, c, A, b, Aeq, beq = random_feasible_qp(n, m, k)
-        x = SolveQP(Q, c, A, b, Aeq, beq)
+        x = SolveQPCas(Q, c, A, b, Aeq, beq)
         dataset.append([(Q, c, A, b, Aeq, beq), x])
     return dataset
 
