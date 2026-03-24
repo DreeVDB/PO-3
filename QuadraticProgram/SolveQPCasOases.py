@@ -1,7 +1,7 @@
 import casadi as ca
 import numpy as np
 
-def SolveQPCasInt(Q, c, A, b, Aeq, beq):
+def SolveQPCasOases(Q, c, A, b, Aeq, beq):
     Q = np.array(Q, dtype=float)
     c = np.array(c, dtype=float)
     A = np.array(A, dtype=float)
