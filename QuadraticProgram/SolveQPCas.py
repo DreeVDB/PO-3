@@ -1,16 +1,14 @@
-import casadi as ca
-import numpy as np
 
 import casadi as ca
 import numpy as np
 
 def SolveQPCas(Q, c, A, b, Aeq, beq):
     """
-    Lost een QP op:
+    Lost een convex QP op:
         minimize 0.5 xᵀ Q x + cᵀ x
-        subject to A x ≤ b
+        subject to A x <= b
                    Aeq x = beq
-    met CasADi's QP solver.
+    met CasADi's NLP solver (ipopt).
     """
 
     Q = np.array(Q, dtype=float)
@@ -21,31 +19,48 @@ def SolveQPCas(Q, c, A, b, Aeq, beq):
     beq = np.array(beq, dtype=float)
 
     n = Q.shape[0]
-    m = A.shape[0]
-    k = Aeq.shape[0]
 
-    # QP datastructuur
-    qp = {}
+    # CasADi variabele
+    x = ca.MX.sym("x", n)
 
-    qp["H"] = ca.DM(Q)
-    qp["g"] = ca.DM(c)
+    # QP-doelstelling
+    obj = 0.5 * ca.dot(x, Q @ x) + ca.dot(c, x)
 
-    # Combineer ongelijkheid + gelijkheid constraints
-    A_total = np.vstack([A, Aeq])
-    qp["A"] = ca.DM(A_total)
+    # Constraints samenvoegen
+    g_list = []
 
-    # Bounds maken
-    lba = np.concatenate([-np.inf * np.ones(m), beq])
-    uba = np.concatenate([b, beq])
+    # Ongelijkheden A x <= b → A x - b <= 0
+    if A.shape[0] > 0:
+        g_list.append(A @ x - b)
 
-    qp["lba"] = ca.DM(lba)
-    qp["uba"] = ca.DM(uba)
+    # Gelijkheden Aeq x = beq
+    if Aeq.shape[0] > 0:
+        g_list.append(Aeq @ x - beq)
 
-    # Variable bounds (onbegrensd)
-    qp["lbx"] = -ca.inf * np.ones(n)
-    qp["ubx"] =  ca.inf * np.ones(n)
+    g = ca.vertcat(*g_list) if len(g_list) > 0 else ca.MX([])
 
-    # Los het QP op
-    sol = ca.qp(qp)
+    # Bounds voor constraints
+    ng = g.size1()
+
+    # Ongelijkheden → [-∞, 0]
+    lbg = []
+    ubg = []
+
+    if A.shape[0] > 0:
+        lbg += [-ca.inf] * A.shape[0]
+        ubg += [0.0] * A.shape[0]
+
+    # Gelijkheden → [0, 0]
+    if Aeq.shape[0] > 0:
+        lbg += [0.0] * Aeq.shape[0]
+        ubg += [0.0] * Aeq.shape[0]
+
+    # Maak NLP
+    nlp = {"x": x, "f": obj, "g": g}
+    solver = ca.nlpsol("solver", "ipopt", nlp,
+                       {"ipopt.print_level": 0,
+                        "print_time": False})
+
+    sol = solver(lbg=lbg, ubg=ubg)
 
     return np.array(sol["x"]).reshape(-1)
