@@ -4,8 +4,8 @@ try:
     from SolveQPCasInt import SolveQPCasInt
     from SolveQPCasOases import SolveQPCasOases
 except ModuleNotFoundError:
-    from QuadraticProgram.SolveQPCasInt import SolveQPCasInt
-    from QuadraticProgram.SolveQPCasOases import SolveQPCasOases
+    from SolveQPCasInt import SolveQPCasInt
+    from SolveQPCasOases import SolveQPCasOases
 
 
 rng = np.random.default_rng()
