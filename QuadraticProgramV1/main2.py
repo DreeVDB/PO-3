@@ -118,10 +118,10 @@ def train_warm_start_model(X, y, n, m, k, epochs=12, batch_size=64):
 
 
 def main(k=1):
-    samples = 100
-    n = 100
-    m = 50
-    epochs = 15
+    samples = 300
+    n = 200
+    m = 20
+    epochs = 300
     batch_size = 64
     seed = 7
     generation_tolerance = 1e-10
@@ -165,7 +165,7 @@ def main(k=1):
     print()
     print_summary_table(summaries)
 
-    model_path = Path(__file__).resolve().parent / f"quadratic_model_n{n}_m{m}_k{k}.keras"
+    model_path = Path.home() / "OneDrive - KU Leuven" / "Bestanden van Dré Vandenbroeke - P&O3" / "quadratic models" / f"quadratic_model_n{n}_m{m}_k{k}.keras"
     model.save(model_path)
     print()
     print(f"Model opgeslagen naar {model_path}")
