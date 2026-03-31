@@ -3,6 +3,7 @@ from statistics import mean
 from time import perf_counter
 
 import numpy as np
+import tensorflow as tf
 
 try:
     from main import flatten_sample
@@ -57,12 +58,20 @@ def benchmark_oases(problems, initial_guesses, tolerance):
 
 
 def benchmark_oases_with_model(problems, model, tolerance):
+    @tf.function(reduce_retracing=True)
+    def fast_predict(x):
+        return model(x, training=False)
+
+    # Warm-up: eerste call triggert tf.function compilatie, niet meten
+    dummy = flatten_sample(*problems[0]).reshape(1, -1).astype(np.float32)
+    fast_predict(tf.constant(dummy))
+
     stats_list = []
     for problem in problems:
-        sample = flatten_sample(*problem).reshape(1, -1)
+        sample = tf.constant(flatten_sample(*problem).reshape(1, -1).astype(np.float32))
 
         predict_start = perf_counter()
-        x0 = model.predict(sample, verbose=0)[0]
+        x0 = fast_predict(sample).numpy()[0]
         predict_time = perf_counter() - predict_start
 
         Q, c, A, b, Aeq, beq = problem
