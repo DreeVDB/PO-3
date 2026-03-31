@@ -118,9 +118,9 @@ def train_warm_start_model(X, y, n, m, k, epochs=12, batch_size=64):
 
 
 def main(k=1):
-    samples = 200
-    n = 300
-    m = 250
+    samples = 100
+    n = 100
+    m = 50
     epochs = 15
     batch_size = 64
     seed = 7
