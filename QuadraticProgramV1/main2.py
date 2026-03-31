@@ -148,7 +148,7 @@ def main(k=1):
     model = train_warm_start_model(X, y, n, m, k, epochs=epochs, batch_size=batch_size)
 
     rng = np.random.default_rng(seed + 1)
-    random_warm_starts = rng.uniform(-100, 100, size=(samples, n))
+    random_warm_starts = rng.uniform(-3.0, 3.0, size=(samples, n))
 
     print("Benchmark qpOASES met random startgok...")
     random_stats = benchmark_oases(problems, random_warm_starts, tolerance=oases_comparison_tolerance)
@@ -165,7 +165,7 @@ def main(k=1):
     print()
     print_summary_table(summaries)
 
-    model_path = Path.home() / "OneDrive - KU Leuven" / "Bestanden van Dré Vandenbroeke - P&O3" / "quadratic models" / f"quadratic_model_n{n}_m{m}_k{k}.keras"
+    model_path = Path(__file__).resolve().parent / f"quadratic_model_n{n}_m{m}_k{k}.keras"
     model.save(model_path)
     print()
     print(f"Model opgeslagen naar {model_path}")
