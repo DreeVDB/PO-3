@@ -118,10 +118,10 @@ def train_warm_start_model(X, y, n, m, k, epochs=12, batch_size=64):
 
 
 def main(k=1):
-    samples = 300
-    n = 200
-    m = 20
-    epochs = 300
+    samples = 200
+    n = 100
+    m = 10
+    epochs = 15
     batch_size = 64
     seed = 7
     generation_tolerance = 1e-10
@@ -148,7 +148,7 @@ def main(k=1):
     model = train_warm_start_model(X, y, n, m, k, epochs=epochs, batch_size=batch_size)
 
     rng = np.random.default_rng(seed + 1)
-    random_warm_starts = rng.uniform(-3.0, 3.0, size=(samples, n))
+    random_warm_starts = rng.uniform(-100, 100, size=(samples, n))
 
     print("Benchmark qpOASES met random startgok...")
     random_stats = benchmark_oases(problems, random_warm_starts, tolerance=oases_comparison_tolerance)
