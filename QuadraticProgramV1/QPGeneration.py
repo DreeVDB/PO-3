@@ -14,7 +14,7 @@ rng = np.random.default_rng()
 def random_feasible_qp(n, ineq, eq, rng_instance=None):
     rng_local = rng if rng_instance is None else rng_instance
 
-    B = rng_local.normal(size=(n, n))
+    B = rng_local.normal(size=(n, 1))
     Q = B.T @ B
 
     c = rng_local.normal(size=n)
