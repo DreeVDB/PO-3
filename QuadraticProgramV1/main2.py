@@ -18,7 +18,6 @@ except ModuleNotFoundError:
     from SolveQPCasInt import SolveQPCasInt
     from SolveQPCasOases import SolveQPCasOases
 
-
 def build_benchmark_dataset(samples, n, m, k, seed=None, generation_tolerance=1e-10):
     rng = np.random.default_rng(seed)
     raw_data = Generate_QP_dataset(
@@ -118,9 +117,11 @@ def train_warm_start_model(X, y, n, m, k, epochs=12, batch_size=64):
 
 
 def main(k=1):
+    SolveQPCasInt._SOLVER_CACHE = {}
+
     samples = 100
-    n = 100
-    m = 50
+    n = 50
+    m = 4
     epochs = 15
     batch_size = 64
     seed = 7
