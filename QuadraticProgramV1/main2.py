@@ -121,7 +121,7 @@ def main(k=1):
 
     samples = 100
     n = 50
-    m = 4
+    m = 40
     epochs = 15
     batch_size = 64
     seed = 7
