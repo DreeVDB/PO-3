@@ -79,7 +79,7 @@ def _build_solver(n, m, k, tolerance):
         "ipopt.max_iter": 2000,
     }
 
-    solver = ca.nlpsol(f"solver_ipopt_{n}_{m}_{k}", "ipopt", nlp, options)
+    solver = ca.nlpsol(f"solver_ipopt_{n}_{m}_{k}_p{parameter_size}", "ipopt", nlp, options)
     cached = (solver, lbg, ubg)
     _SOLVER_CACHE[cache_key] = cached
     return cached

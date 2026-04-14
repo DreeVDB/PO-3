@@ -4,8 +4,8 @@ try:
     from SolveQPCasInt import SolveQPCasInt
     from SolveQPCasOases import SolveQPCasOases
 except ModuleNotFoundError:
-    from QuadraticProgram.SolveQPCasInt import SolveQPCasInt
-    from QuadraticProgram.SolveQPCasOases import SolveQPCasOases
+    from SolveQPCasInt import SolveQPCasInt
+    from SolveQPCasOases import SolveQPCasOases
 
 
 rng = np.random.default_rng()
@@ -14,7 +14,7 @@ rng = np.random.default_rng()
 def random_feasible_qp(n, ineq, eq, rng_instance=None):
     rng_local = rng if rng_instance is None else rng_instance
 
-    B = rng_local.normal(size=(n, 1))
+    B = rng_local.normal(size=(n, n))
     Q = B.T @ B
 
     c = rng_local.normal(size=n)
