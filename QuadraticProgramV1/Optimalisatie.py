@@ -3,13 +3,33 @@ from time import perf_counter
 from pathlib import Path
 import csv
 import numpy as np
+from pathlib import Path
+from statistics import mean
+from time import perf_counter
+
+import numpy as np
+import tensorflow as tf
+
+from main import flatten_sample
+from NeuraalNetwerk import build_model
+from QPGeneration import Generate_QP_dataset
+from SolveQPCasInt import SolveQPCasInt
+from SolveQPCasOases import SolveQPCasOases
+
+from main import flatten_sample
+from NeuraalNetwerk import build_model
+
+from NeuraalNetwerk import build_model
+from main2 import build_benchmark_dataset
+from main2 import benchmark_interior
+
 
 
 def benchmark_nn_hyperparameters(
     *,
     samples=100,
-    n=100,
-    m=50,
+    n=4,
+    m=4,
     k=1,
     seed=7,
     generation_tolerance=1e-10,
@@ -139,11 +159,12 @@ def benchmark_nn_hyperparameters(
         print(f"\nResultaten opgeslagen in {csv_path}")
 
     return results_sorted
+
 def main():
     benchmark_nn_hyperparameters(
         samples=100,
-        n=100,
-        m=50,
+        n=4,
+        m=4,
         k=1,
         epoch_grid=(3, 5, 10, 20),
         batch_size_grid=(32, 64, 128),
@@ -151,5 +172,4 @@ def main():
     )
 
 
-if __name__ == "__main__":
-    main()
+main()
