@@ -159,8 +159,8 @@ def run_experiment(
     batch_size,
     n_layers,
     layer_size,
-    n=4,
-    m=4,
+    n=200,
+    m=150,
     k=1,
     seed=7,
 ):
@@ -208,9 +208,9 @@ def run_experiment(
 # ============================================================
 
 def main():
-    sample_list = [50]
-    epoch_list = [5]
-    batch_list = [32]
+    sample_list = [50*i for i in range(1, 17)]  
+    epoch_list = [15]
+    batch_list = [64]
     layer_list = [2]
     size_list = [64]
 
