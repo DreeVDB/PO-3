@@ -1,0 +1,214 @@
+from pathlib import Path
+from statistics import mean
+from time import perf_counter
+
+import numpy as np
+import tensorflow as tf
+
+# ✅ Correcte package-imports (nodig voor ▶ Play)
+from main import flatten_sample
+from TestBuildModel import build_model_test
+from QPGeneration import Generate_QP_dataset
+from SolveQPCasOases import SolveQPCasOases
+
+
+# ============================================================
+# Dataset generatie
+# ============================================================
+
+def build_benchmark_dataset(samples, n, m, k, seed=None, generation_tolerance=1e-10):
+    rng = np.random.default_rng(seed)
+    raw_data = Generate_QP_dataset(
+        samples=samples,
+        n=n,
+        ineq=m,
+        eq=k,
+        solver="interior",
+        rng_instance=rng,
+        solver_tolerance=generation_tolerance,
+    )
+
+    problems = [problem for (problem, _) in raw_data]
+    X = np.array([flatten_sample(*problem) for (problem, _) in raw_data])
+    y = np.array([solution for (_, solution) in raw_data])
+    return problems, X, y
+
+
+# ============================================================
+# Benchmark: qpOASES + NN warm start
+# ============================================================
+
+def benchmark_oases_with_model(problems, model, tolerance):
+    @tf.function(reduce_retracing=True)
+    def fast_predict(x):
+        return model(x, training=False)
+
+    # warm‑up (niet meten)
+    dummy = flatten_sample(*problems[0]).reshape(1, -1).astype(np.float32)
+    fast_predict(tf.constant(dummy))
+
+    stats_list = []
+
+    for problem in problems:
+        sample = tf.constant(
+            flatten_sample(*problem).reshape(1, -1).astype(np.float32)
+        )
+
+        t0 = perf_counter()
+        x0 = fast_predict(sample).numpy()[0]
+        predict_time = perf_counter() - t0
+
+        Q, c, A, b, Aeq, beq = problem
+        _, stats = SolveQPCasOases(
+            Q, c, A, b, Aeq, beq,
+            x0=x0,
+            return_stats=True,
+            tolerance=tolerance,
+        )
+
+        stats["predict_time_seconds"] = predict_time
+        stats["wall_time_seconds"] = predict_time + stats["solve_time_seconds"]
+        stats_list.append(stats)
+
+    return stats_list
+
+
+# ============================================================
+# Statistieken
+# ============================================================
+
+def summarize_stats(name, stats_list):
+    total_time = sum(stat["wall_time_seconds"] for stat in stats_list)
+    avg_time = mean(stat["wall_time_seconds"] for stat in stats_list)
+    avg_iter = mean(stat["iter_count"] for stat in stats_list)
+    success_rate = 100.0 * mean(
+        1.0 if stat["success"] else 0.0 for stat in stats_list
+    )
+
+    return {
+        "name": name,
+        "total_time": total_time,
+        "avg_time": avg_time,
+        "avg_iter": avg_iter,
+        "success_rate": success_rate,
+    }
+
+
+def print_summary_table(results):
+    header = (
+        f"{'Configuratie':<35}"
+        f"{'Tot. tijd (s)':>16}"
+        f"{'Gem. tijd (s)':>16}"
+        f"{'Gem. iter':>14}"
+        f"{'Succes (%)':>14}"
+    )
+    print(header)
+    print("-" * len(header))
+    for r in results:
+        print(
+            f"{r['name']:<35}"
+            f"{r['total_time']:>16.3f}"
+            f"{r['avg_time']:>16.4f}"
+            f"{r['avg_iter']:>14.2f}"
+            f"{r['success_rate']:>14.2f}"
+        )
+
+
+# ============================================================
+# Eén experiment
+# ============================================================
+
+def run_experiment(
+    samples,
+    epochs,
+    batch_size,
+    n_layers,
+    layer_size,
+    n=4,
+    m=4,
+    k=1,
+    seed=7,
+):
+    problems, X, y = build_benchmark_dataset(
+        samples=samples,
+        n=n,
+        m=m,
+        k=k,
+        seed=seed,
+    )
+
+    model = build_model_test(
+        n=n,
+        m=m,
+        k=k,
+        n_layers=n_layers,
+        layer_size=layer_size,
+    )
+
+    model.fit(
+        X,
+        y,
+        epochs=epochs,
+        batch_size=batch_size,
+        validation_split=0.1,
+        verbose=0,
+    )
+
+    stats = benchmark_oases_with_model(
+        problems,
+        model,
+        tolerance=1e-5,
+    )
+
+    return summarize_stats(
+        name=f"S{samples}_E{epochs}_B{batch_size}_L{n_layers}x{layer_size}",
+        stats_list=stats,
+    )
+
+
+# ============================================================
+# Main: hyperparameter sweep
+# ============================================================
+
+def main():
+    sample_list = [50]
+    epoch_list = [5]
+    batch_list = [32]
+    layer_list = [2]
+    size_list = [64]
+
+    results = []
+
+    for samples in sample_list:
+        for epochs in epoch_list:
+            for batch in batch_list:
+                for n_layers in layer_list:
+                    for layer_size in size_list:
+                        print(
+                            f"Run: samples={samples}, "
+                            f"epochs={epochs}, "
+                            f"batch={batch}, "
+                            f"layers={n_layers}x{layer_size}"
+                        )
+
+                        summary = run_experiment(
+                            samples=samples,
+                            epochs=epochs,
+                            batch_size=batch,
+                            n_layers=n_layers,
+                            layer_size=layer_size,
+                        )
+                        results.append(summary)
+
+    print("\nResultaten (gesorteerd op gemiddelde tijd):\n")
+    results.sort(key=lambda r: r["avg_time"])
+    print_summary_table(results)
+
+    best = results[0]
+    print("\nBeste configuratie:")
+    for k, v in best.items():
+        print(f"  {k}: {v}")
+
+
+if __name__ == "__main__":
+    main()
