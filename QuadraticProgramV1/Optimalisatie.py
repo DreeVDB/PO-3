@@ -3,6 +3,7 @@ from time import perf_counter
 from pathlib import Path
 import csv
 import numpy as np
+import tensorflow as tf
 from pathlib import Path
 from statistics import mean
 from time import perf_counter
@@ -22,6 +23,7 @@ from NeuraalNetwerk import build_model
 from NeuraalNetwerk import build_model
 from main2 import build_benchmark_dataset
 from main2 import benchmark_interior
+import QuadraticProgram
 
 
 
