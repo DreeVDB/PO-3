@@ -6,10 +6,10 @@ import numpy as np
 import tensorflow as tf
 
 # ✅ Correcte package-imports (nodig voor ▶ Play)
-from main import flatten_sample
-from TestBuildModel import build_model_test
-from QPGeneration import Generate_QP_dataset
-from SolveQPCasOases import SolveQPCasOases
+from .main import flatten_sample
+from .TestBuildModel import build_model_test
+from .QPGeneration import Generate_QP_dataset
+from .SolveQPCasOases import SolveQPCasOases
 
 
 # ============================================================
