@@ -122,28 +122,34 @@ def summarize_stats(name, stats_list):
     total_time = sum(stat.get("wall_time_seconds", stat["solve_time_seconds"]) for stat in stats_list)
     avg_time = mean(stat.get("wall_time_seconds", stat["solve_time_seconds"]) for stat in stats_list)
     avg_iter = mean(stat["iter_count"] for stat in stats_list)
+    avg_nn_time = mean(stat.get("predict_time_seconds", 0) for stat in stats_list)
+    avg_solver_time = mean(stat["solve_time_seconds"] for stat in stats_list)
     success_rate = 100.0 * mean(1.0 if stat["success"] else 0.0 for stat in stats_list)
 
     return {
         "name": name,
         "total_time": total_time,
         "avg_time": avg_time,
+        "avg_nn_time": avg_nn_time,
+        "avg_solver_time": avg_solver_time,
         "avg_iter": avg_iter,
         "success_rate": success_rate,
     }
 
 
 def print_summary_table(summaries):
-    header = f"{'Methode':<28}{'Totale tijd (s)':>18}{'Gem. tijd (s)':>18}{'Gem. iteraties':>18}{'Succes (%)':>14}"
+    header = f"{'Methode':<28}{'Totale tijd (s)':>15}{'Gem. tijd (s)':>15}{'Gem. NN tijd (s)':>16}{'Gem. solver tijd (s)':>20}{'Gem. iteraties':>16}{'Succes (%)':>12}"
     print(header)
     print("-" * len(header))
     for summary in summaries:
         print(
             f"{summary['name']:<28}"
-            f"{summary['total_time']:>18.3f}"
-            f"{summary['avg_time']:>18.3f}"
-            f"{summary['avg_iter']:>18.2f}"
-            f"{summary['success_rate']:>14.2f}"
+            f"{summary['total_time']:>15.3f}"
+            f"{summary['avg_time']:>15.3f}"
+            f"{summary['avg_nn_time']:>16.3f}"
+            f"{summary['avg_solver_time']:>20.3f}"
+            f"{summary['avg_iter']:>16.2f}"
+            f"{summary['success_rate']:>12.2f}"
         )
 
 
