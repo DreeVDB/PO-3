@@ -10,12 +10,14 @@ try:
     from NeuraalNetwerk import build_model
     from QPGeneration import Generate_QP_dataset
     from SolveQPCasInt import SolveQPCasInt
+    from SolveQP_OSQP import SolveQP_OSQP
     from SolveQPCasOases import SolveQPCasOases
 except ModuleNotFoundError:
     from main import flatten_sample
     from NeuraalNetwerk import build_model
     from QPGeneration import Generate_QP_dataset
     from SolveQPCasInt import SolveQPCasInt
+    from SolveQP_OSQP import SolveQP_OSQP
     from SolveQPCasOases import SolveQPCasOases
 
 
@@ -57,6 +59,16 @@ def benchmark_oases(problems, initial_guesses, tolerance):
     return stats_list
 
 
+def benchmark_osqp(problems, initial_guesses, tolerance):
+    stats_list = []
+    for problem, x0 in zip(problems, initial_guesses):
+        Q, c, A, b, Aeq, beq = problem
+        _, stats = SolveQP_OSQP(Q, c, A, b, Aeq, beq, x0=x0, return_stats=True, tolerance=tolerance)
+        stats["wall_time_seconds"] = stats["solve_time_seconds"]
+        stats_list.append(stats)
+    return stats_list
+
+
 def benchmark_oases_with_model(problems, model, tolerance):
     @tf.function(reduce_retracing=True)
     def fast_predict(x):
@@ -76,6 +88,30 @@ def benchmark_oases_with_model(problems, model, tolerance):
 
         Q, c, A, b, Aeq, beq = problem
         _, stats = SolveQPCasOases(Q, c, A, b, Aeq, beq, x0=x0, return_stats=True, tolerance=tolerance)
+        stats["predict_time_seconds"] = predict_time
+        stats["wall_time_seconds"] = predict_time + stats["solve_time_seconds"]
+        stats_list.append(stats)
+    return stats_list
+
+
+def benchmark_osqp_with_model(problems, model, tolerance):
+    @tf.function(reduce_retracing=True)
+    def fast_predict(x):
+        return model(x, training=False)
+
+    dummy = flatten_sample(*problems[0]).reshape(1, -1).astype(np.float32)
+    fast_predict(tf.constant(dummy))
+
+    stats_list = []
+    for problem in problems:
+        sample = tf.constant(flatten_sample(*problem).reshape(1, -1).astype(np.float32))
+
+        predict_start = perf_counter()
+        x0 = fast_predict(sample).numpy()[0]
+        predict_time = perf_counter() - predict_start
+
+        Q, c, A, b, Aeq, beq = problem
+        _, stats = SolveQP_OSQP(Q, c, A, b, Aeq, beq, x0=x0, return_stats=True, tolerance=tolerance)
         stats["predict_time_seconds"] = predict_time
         stats["wall_time_seconds"] = predict_time + stats["solve_time_seconds"]
         stats_list.append(stats)
@@ -119,8 +155,13 @@ def train_warm_start_model(X, y, n, m, k, epochs=12, batch_size=64):
 
 def main(k=1):
     samples = 100
+<<<<<<< Updated upstream
     n = 100
     m = 50
+=======
+    n = 20
+    m = 4
+>>>>>>> Stashed changes
     epochs = 15
     batch_size = 64
     seed = 7
@@ -153,13 +194,21 @@ def main(k=1):
     print("Benchmark qpOASES met random startgok...")
     random_stats = benchmark_oases(problems, random_warm_starts, tolerance=oases_comparison_tolerance)
 
+    print("Benchmark OSQP met random startgok...")
+    osqp_random_stats = benchmark_osqp(problems, random_warm_starts, tolerance=oases_comparison_tolerance)
+
     print("Benchmark qpOASES met neural network warm start, 1 QP per predict-call...")
     nn_stats = benchmark_oases_with_model(problems, model, tolerance=oases_comparison_tolerance)
+
+    print("Benchmark OSQP met neural network warm start, 1 QP per predict-call...")
+    osqp_nn_stats = benchmark_osqp_with_model(problems, model, tolerance=oases_comparison_tolerance)
 
     summaries = [
         summarize_stats("Interior point (IPOPT)", interior_stats),
         summarize_stats("qpOASES random warm start", random_stats),
         summarize_stats("qpOASES NN warm start", nn_stats),
+        summarize_stats("OSQP random warm start", osqp_random_stats),
+        summarize_stats("OSQP NN warm start", osqp_nn_stats),
     ]
 
     print()
