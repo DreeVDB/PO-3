@@ -1,4 +1,5 @@
 import numpy as np
+import QuadraticProgram
 
 try:
     from SolveQPCasInt import SolveQPCasInt
