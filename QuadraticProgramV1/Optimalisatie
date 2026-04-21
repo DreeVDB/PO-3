@@ -1,16 +1,30 @@
 from pathlib import Path
 from statistics import mean
 from time import perf_counter
+import matplotlib.pyplot as plt
 
 import numpy as np
 import tensorflow as tf
 
-# ✅ Correcte package-imports (nodig voor ▶ Play)
-from .main import flatten_sample
-from .TestBuildModel import build_model_test
-from .QPGeneration import Generate_QP_dataset
-from .SolveQPCasOases import SolveQPCasOases
+from main import flatten_sample
+from QPGeneration import Generate_QP_dataset
+from SolveQPCasOases import SolveQPCasOases
 
+# ============================================================
+# test build_model  alle parameters varabele
+# ============================================================
+def build_model_test(input_dim, n, n_layers, layer_size):
+    inputs = tf.keras.Input(shape=(input_dim,))
+    x = inputs
+
+    for _ in range(n_layers):
+        x = tf.keras.layers.Dense(layer_size, activation="relu")(x)
+
+    outputs = tf.keras.layers.Dense(n)(x)
+
+    model = tf.keras.Model(inputs, outputs)
+    model.compile(optimizer="adam", loss="mse")
+    return model
 
 # ============================================================
 # Dataset generatie
@@ -113,6 +127,27 @@ def print_summary_table(results):
             f"{r['success_rate']:>14.2f}"
         )
 
+def plot_results(results, top_k=10):
+    """
+    Plot de beste NN-configuraties op basis van gemiddelde totale oplostijd.
+    """
+    # Sorteer op gemiddelde tijd
+    results_sorted = sorted(results, key=lambda r: r["avg_time"])
+
+    # Neem enkel de beste top_k (anders onleesbaar)
+    results_sorted = results_sorted[:top_k]
+
+    names = [r["name"] for r in results_sorted]
+    times = [r["avg_time"] for r in results_sorted]
+
+    plt.figure()
+    plt.barh(names, times)
+    plt.xlabel("Gemiddelde totale oplostijd (s)")
+    plt.ylabel("NN-configuratie")
+    plt.title("Invloed van NN-hyperparameters op QP-oplostijd")
+    plt.tight_layout()
+    plt.show()
+
 
 # ============================================================
 # Eén experiment
@@ -137,13 +172,15 @@ def run_experiment(
         seed=seed,
     )
 
+    input_dim = len(flatten_sample(*problems[0]))
+
     model = build_model_test(
-        n=n,
-        m=m,
-        k=k,
-        n_layers=n_layers,
-        layer_size=layer_size,
+    input_dim=input_dim,
+    n=n,
+    n_layers=n_layers,
+    layer_size=layer_size,
     )
+
 
     model.fit(
         X,
@@ -208,6 +245,7 @@ def main():
     print("\nBeste configuratie:")
     for k, v in best.items():
         print(f"  {k}: {v}")
+    plot_results(results, top_k=10)
 
 
 if __name__ == "__main__":
