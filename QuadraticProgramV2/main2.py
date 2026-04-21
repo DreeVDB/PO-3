@@ -21,6 +21,9 @@ from SolveQPCasOases import SolveQPCasOases
 def build_benchmark_dataset(samples, n, m, k, seed=None, generation_tolerance=1e-10, active_tolerance=1e-5):
     rng = np.random.default_rng(seed)
     raw_data = Generate_QP_dataset(
+
+        ## IS NOG NIET JUIST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ## CHAT MOET NOG FIXEN (ALEXANDER: ZIE CHATLOGS OM AAN TE PASSEN)!!!!!!!!!!!!!!!!!!!!!!!!!
         samples=samples,
         n=n,
         ineq=m,
