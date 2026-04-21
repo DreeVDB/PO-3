@@ -160,9 +160,9 @@ def train_warm_start_model(X, y, n, m, k, epochs=12, batch_size=64):
 
 
 def main(k=1):
-    samples = 200
-    n = 50  
-    m = 30
+    samples = 1000
+    n = 200  
+    m = 150
     epochs = 15
     batch_size = 64
     seed = 7
@@ -184,6 +184,7 @@ def main(k=1):
     )
 
     print("Benchmark interior point (IPOPT)...")
+    print(samples)
     interior_stats = benchmark_interior(problems, tolerance=interior_comparison_tolerance)
 
     print("Train neuraal netwerk voor warm start...")
