@@ -138,16 +138,16 @@ def summarize_stats(name, stats_list):
 
 
 def print_summary_table(summaries):
-    header = f"{'Methode':<28}{'Totale tijd (s)':>15}{'Gem. tijd (s)':>15}{'Gem. NN tijd (s)':>16}{'Gem. solver tijd (s)':>20}{'Gem. iteraties':>16}{'Succes (%)':>12}"
+    header = f"{'Methode':<28}{'Totale tijd (s)':>17}{'Gem. tijd (s)':>17}{'Gem. NN tijd (s)':>18}{'Gem. solver tijd (s)':>22}{'Gem. iteraties':>16}{'Succes (%)':>12}"
     print(header)
     print("-" * len(header))
     for summary in summaries:
         print(
             f"{summary['name']:<28}"
-            f"{summary['total_time']:>15.3f}"
-            f"{summary['avg_time']:>15.3f}"
-            f"{summary['avg_nn_time']:>16.3f}"
-            f"{summary['avg_solver_time']:>20.3f}"
+            f"{summary['total_time']:>17.5f}"
+            f"{summary['avg_time']:>17.5f}"
+            f"{summary['avg_nn_time']:>18.5f}"
+            f"{summary['avg_solver_time']:>22.5f}"
             f"{summary['avg_iter']:>16.2f}"
             f"{summary['success_rate']:>12.2f}"
         )
@@ -161,8 +161,8 @@ def train_warm_start_model(X, y, n, m, k, epochs=12, batch_size=64):
 
 def main(k=1):
     samples = 200
-    n = 200
-    m = 150
+    n = 50  
+    m = 30
     epochs = 15
     batch_size = 64
     seed = 7
