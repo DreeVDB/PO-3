@@ -8,6 +8,7 @@ Workflow:
   4. Overzichtstabel + elleboogplot met baselines
 """
 
+import sys
 from pathlib import Path
 from statistics import mean
 from time import perf_counter
@@ -16,27 +17,26 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-try:
-    from QuadraticProgramV1.main import flatten_sample
-    from QPGeneration import Generate_QP_dataset
-    from NeuraalNetwerk import build_model
-    from SolveQPCasInt import SolveQPCasInt
-    from SolveQPCasOases import SolveQPCasOases
-except ModuleNotFoundError:
-    from QuadraticProgramV1.main import flatten_sample
-    from QPGeneration import Generate_QP_dataset
-    from NeuraalNetwerk import build_model
-    from SolveQPCasInt import SolveQPCasInt
-    from SolveQPCasOases import SolveQPCasOases
+MODULE_DIR = Path(__file__).resolve().parent
+if str(MODULE_DIR) not in sys.path:
+    sys.path.insert(0, str(MODULE_DIR))
+
+from QPGeneration import Generate_QP_dataset
+from SolveQPCasInt import SolveQPCasInt
+from SolveQPCasOases import SolveQPCasOases
 
 from train_model import layers_to_str, train_warm_start_model
+
+
+def flatten_sample(Q, c, A, b, Aeq, beq):
+    return np.concatenate([Q.flatten(), c, A.flatten(), b, Aeq.flatten(), beq])
 
 
 # ---------------------------------------------------------------------------
 # Configuratie — pas hier aan
 # ---------------------------------------------------------------------------
-N = 200
-M = 150
+N = 50
+M = 30
 K = 1
 SAMPLES = 500
 EPOCHS = 20
