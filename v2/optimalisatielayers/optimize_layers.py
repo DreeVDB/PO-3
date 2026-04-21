@@ -17,13 +17,13 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 try:
-    from main import flatten_sample
+    from QuadraticProgramV1.main import flatten_sample
     from QPGeneration import Generate_QP_dataset
     from NeuraalNetwerk import build_model
     from SolveQPCasInt import SolveQPCasInt
     from SolveQPCasOases import SolveQPCasOases
 except ModuleNotFoundError:
-    from main import flatten_sample
+    from QuadraticProgramV1.main import flatten_sample
     from QPGeneration import Generate_QP_dataset
     from NeuraalNetwerk import build_model
     from SolveQPCasInt import SolveQPCasInt

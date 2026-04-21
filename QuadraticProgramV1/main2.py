@@ -13,12 +13,12 @@ try:
     from SolveQP_OSQP import SolveQP_OSQP
     from SolveQPCasOases import SolveQPCasOases
 except ModuleNotFoundError:
-    from main import flatten_sample
-    from NeuraalNetwerk import build_model
-    from QPGeneration import Generate_QP_dataset
-    from SolveQPCasInt import SolveQPCasInt
-    from SolveQP_OSQP import SolveQP_OSQP
-    from SolveQPCasOases import SolveQPCasOases
+    from QuadraticProgramV1.main import flatten_sample
+    from QuadraticProgramV1.NeuraalNetwerk import build_model
+    from QuadraticProgramV1.QPGeneration import Generate_QP_dataset
+    from QuadraticProgramV1.SolveQPCasInt import SolveQPCasInt
+    from QuadraticProgramV1.SolveQP_OSQP import SolveQP_OSQP
+    from QuadraticProgramV1.SolveQPCasOases import SolveQPCasOases
 
 
 def build_benchmark_dataset(samples, n, m, k, seed=None, generation_tolerance=1e-10):

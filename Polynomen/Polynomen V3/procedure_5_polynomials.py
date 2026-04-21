@@ -2,7 +2,7 @@ import numpy as np
 
 from build_dataset import build_dataset
 from build_model import build_model
-from main import Standardizer, make_monic
+from QuadraticProgramV1.main import Standardizer, make_monic
 from newton_raphson import newton_raphson_complex, poly_and_derivative
 from root_utils import decode_roots_ri, sort_roots_canonical
 

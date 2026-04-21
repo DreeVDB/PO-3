@@ -6,10 +6,10 @@ from pathlib import Path
 import numpy as np
 
 try:
-    from main import flatten_sample
+    from QuadraticProgramV1.main import flatten_sample
     from QPGeneration import Generate_QP_dataset
 except ModuleNotFoundError:
-    from main import flatten_sample
+    from QuadraticProgramV1.main import flatten_sample
     from QPGeneration import Generate_QP_dataset
 
 

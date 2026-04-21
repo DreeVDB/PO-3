@@ -5,13 +5,13 @@ from time import perf_counter
 import numpy as np
 
 try:
-    from main import flatten_sample
+    from QuadraticProgramV1.main import flatten_sample
     from NeuraalNetwerk import build_model
     from QPGeneration import Generate_QP_dataset
     from SolveQPCasInt import SolveQPCasInt
     from SolveQPCasOases import SolveQPCasOases
 except ModuleNotFoundError:
-    from main import flatten_sample
+    from QuadraticProgramV1.main import flatten_sample
     from NeuraalNetwerk import build_model
     from QPGeneration import Generate_QP_dataset
     from SolveQPCasInt import SolveQPCasInt
