@@ -127,18 +127,13 @@ def print_summary_table(results):
             f"{r['success_rate']:>14.2f}"
         )
 
-def plot_results(results, top_k=10):
+def plot_results(results):
     """
     Plot de beste NN-configuraties op basis van gemiddelde totale oplostijd.
     """
-    # Sorteer op gemiddelde tijd
-    results_sorted = sorted(results, key=lambda r: r["avg_time"])
 
-    # Neem enkel de beste top_k (anders onleesbaar)
-    results_sorted = results_sorted[:top_k]
-
-    names = [r["name"] for r in results_sorted]
-    times = [r["avg_time"] for r in results_sorted]
+    names = [r["name"] for r in results]
+    times = [r["avg_time"] for r in results]
 
     plt.figure()
     plt.barh(names, times)
@@ -208,8 +203,8 @@ def run_experiment(
 # ============================================================
 
 def main():
-    sample_list = [50*i for i in range(1, 17)]  
-    epoch_list = [15]
+    sample_list = [100]  
+    epoch_list = [5*i for i in range(1, 21)] 
     batch_list = [64]
     layer_list = [2]
     size_list = [64]
@@ -237,15 +232,14 @@ def main():
                         )
                         results.append(summary)
 
-    print("\nResultaten (gesorteerd op gemiddelde tijd):\n")
-    results.sort(key=lambda r: r["avg_time"])
+    print("\nResultaten:\n")
     print_summary_table(results)
 
-    best = results[0]
+    best = min(results, key=lambda r: r["avg_time"])
     print("\nBeste configuratie:")
     for k, v in best.items():
         print(f"  {k}: {v}")
-    plot_results(results, top_k=10)
+    plot_results(results)
 
 
 if __name__ == "__main__":
