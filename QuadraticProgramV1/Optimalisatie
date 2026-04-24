@@ -203,11 +203,11 @@ def run_experiment(
 # ============================================================
 
 def main():
-    sample_list = [100]  
-    epoch_list = [5*i for i in range(1, 21)] 
-    batch_list = [64]
-    layer_list = [2]
-    size_list = [64]
+    sample_list = [500]  
+    epoch_list = [75] 
+    batch_list = [32]
+    layer_list = [2,3,4]
+    size_list = [32,64,128,256] 
 
     results = []
 
