@@ -9,6 +9,7 @@ import tensorflow as tf
 from main import flatten_sample
 from QPGeneration import Generate_QP_dataset
 from SolveQPCasOases import SolveQPCasOases
+from SolveQP_OSQP import SolveQP_OSQP
 
 # ============================================================
 # test build_model  alle parameters varabele
@@ -85,7 +86,39 @@ def benchmark_oases_with_model(problems, model, tolerance):
         stats_list.append(stats)
 
     return stats_list
+def benchmark_osqp_with_model(problems, model, tolerance):
+    @tf.function(reduce_retracing=True)
+    def fast_predict(x):
+        return model(x, training=False)
 
+    # warm‑up (niet meten)
+    dummy = flatten_sample(*problems[0]).reshape(1, -1).astype(np.float32)
+    fast_predict(tf.constant(dummy))
+
+    stats_list = []
+
+    for problem in problems:
+        sample = tf.constant(
+            flatten_sample(*problem).reshape(1, -1).astype(np.float32)
+        )
+
+        t0 = perf_counter()
+        x0 = fast_predict(sample).numpy()[0]
+        predict_time = perf_counter() - t0
+
+        Q, c, A, b, Aeq, beq = problem
+        _, stats = SolveQP_OSQP(
+            Q, c, A, b, Aeq, beq,
+            x0=x0,
+            return_stats=True,
+            tolerance=tolerance,
+        )
+
+        stats["predict_time_seconds"] = predict_time
+        stats["wall_time_seconds"] = predict_time + stats["solve_time_seconds"]
+        stats_list.append(stats)
+
+    return stats_list
 
 # ============================================================
 # Statistieken
@@ -148,14 +181,14 @@ def plot_results(results):
 # Eén experiment
 # ============================================================
 
-def run_experiment(
+def run_experiment_oases(
     samples,
     epochs,
     batch_size,
     n_layers,
     layer_size,
-    n=200,
-    m=150,
+    n,
+    m,
     k=1,
     seed=7,
 ):
@@ -186,7 +219,7 @@ def run_experiment(
         verbose=0,
     )
 
-    stats = benchmark_oases_with_model(
+    stats1 = benchmark_oases_with_model(
         problems,
         model,
         tolerance=1e-5,
@@ -194,8 +227,58 @@ def run_experiment(
 
     return summarize_stats(
         name=f"S{samples}_E{epochs}_B{batch_size}_L{n_layers}x{layer_size}",
-        stats_list=stats,
+        stats_list=stats1,
     )
+
+def run_experiment_osqp(
+    samples,
+    epochs,
+    batch_size,
+    n_layers,
+    layer_size,
+    n,
+    m,
+    k=1,
+    seed=7,
+):
+    problems, X, y = build_benchmark_dataset(
+        samples=samples,
+        n=n,
+        m=m,
+        k=k,
+        seed=seed,
+    )
+
+    input_dim = len(flatten_sample(*problems[0]))
+
+    model = build_model_test(
+    input_dim=input_dim,
+    n=n,
+    n_layers=n_layers,
+    layer_size=layer_size,
+    )
+
+
+    model.fit(
+        X,
+        y,
+        epochs=epochs,
+        batch_size=batch_size,
+        validation_split=0.1,
+        verbose=0,
+    )
+
+    stats1 = benchmark_osqp_with_model(
+        problems,
+        model,
+        tolerance=1e-5,
+    )
+
+    return summarize_stats(
+        name=f"S{samples}_E{epochs}_B{batch_size}_L{n_layers}x{layer_size}",
+        stats_list=stats1,
+    )
+
 
 
 # ============================================================
@@ -203,13 +286,16 @@ def run_experiment(
 # ============================================================
 
 def main():
-    sample_list = [500]  
-    epoch_list = [75] 
+    size = 4
+    ineq=4
+    sample_list = [100]  
+    epoch_list = [15] 
     batch_list = [32]
-    layer_list = [2,3,4]
-    size_list = [32,64,128,256] 
+    layer_list = [2,3]
+    size_list = [32,64] 
 
-    results = []
+    results_oases = []
+    results_osqp = []
 
     for samples in sample_list:
         for epochs in epoch_list:
@@ -223,23 +309,45 @@ def main():
                             f"layers={n_layers}x{layer_size}"
                         )
 
-                        summary = run_experiment(
+                        summary1 = run_experiment_oases(
                             samples=samples,
                             epochs=epochs,
                             batch_size=batch,
                             n_layers=n_layers,
                             layer_size=layer_size,
+                            n=size,
+                            m=ineq,
                         )
-                        results.append(summary)
+                        results_oases.append(summary1)
 
-    print("\nResultaten:\n")
-    print_summary_table(results)
+                        summary2 = run_experiment_oases(
+                            samples=samples,
+                            epochs=epochs,
+                            batch_size=batch,
+                            n_layers=n_layers,
+                            layer_size=layer_size,
+                            n=size,
+                            m=ineq,
+                        )
+                        results_osqp.append(summary2)
 
-    best = min(results, key=lambda r: r["avg_time"])
+    print("\nResultaten Oases:\n")
+    print_summary_table(results_oases)
+
+    best = min(results_oases, key=lambda r: r["avg_time"])
     print("\nBeste configuratie:")
     for k, v in best.items():
         print(f"  {k}: {v}")
-    plot_results(results)
+    plot_results(results_oases)
+
+    print("\nResultaten osqp:\n")
+    print_summary_table(results_osqp)
+
+    best = min(results_osqp, key=lambda r: r["avg_time"])
+    print("\nBeste configuratie:")
+    for k, v in best.items():
+        print(f"  {k}: {v}")
+    plot_results(results_osqp)
 
 
 if __name__ == "__main__":
