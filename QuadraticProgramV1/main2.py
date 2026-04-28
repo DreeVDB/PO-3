@@ -39,6 +39,33 @@ def build_benchmark_dataset(samples, n, m, k, seed=None, generation_tolerance=1e
     return problems, X, y
 
 
+def compute_nn_warm_starts(problems, model):
+    """
+    Berekent alle warm starts in één batch-predict pass.
+    Geeft (warm_starts, predict_time_per_sample) terug.
+    De predict time is de gemiddelde tijd per probleem over de volledige batch.
+    """
+    @tf.function(reduce_retracing=True)
+    def fast_predict(x):
+        return model(x, training=False)
+
+    # Warm-up: triggert tf.function compilatie, wordt niet gemeten
+    dummy = flatten_sample(*problems[0]).reshape(1, -1).astype(np.float32)
+    fast_predict(tf.constant(dummy))
+
+    # Batch alle inputs samen
+    X_batch = np.array(
+        [flatten_sample(*p).reshape(-1) for p in problems], dtype=np.float32
+    )
+
+    predict_start = perf_counter()
+    warm_starts = fast_predict(tf.constant(X_batch)).numpy()
+    total_predict_time = perf_counter() - predict_start
+
+    predict_time_per_sample = total_predict_time / len(problems)
+    return warm_starts, predict_time_per_sample
+
+
 def benchmark_interior(problems, tolerance):
     stats_list = []
     for problem in problems:
@@ -69,51 +96,34 @@ def benchmark_osqp(problems, initial_guesses, tolerance):
     return stats_list
 
 
-def benchmark_oases_with_model(problems, model, tolerance):
-    @tf.function(reduce_retracing=True)
-    def fast_predict(x):
-        return model(x, training=False)
-
-    # Warm-up: eerste call triggert tf.function compilatie, niet meten
-    dummy = flatten_sample(*problems[0]).reshape(1, -1).astype(np.float32)
-    fast_predict(tf.constant(dummy))
-
+def benchmark_oases_with_warmstarts(problems, warm_starts, predict_time_per_sample, tolerance):
+    """
+    Benchmarkt qpOASES met vooraf berekende warm starts.
+    predict_time_per_sample wordt toegevoegd aan elke stat zodat wall_time
+    de volledige kost (NN + solver) weerspiegelt.
+    """
     stats_list = []
-    for problem in problems:
-        sample = tf.constant(flatten_sample(*problem).reshape(1, -1).astype(np.float32))
-
-        predict_start = perf_counter()
-        x0 = fast_predict(sample).numpy()[0]
-        predict_time = perf_counter() - predict_start
-
+    for problem, x0 in zip(problems, warm_starts):
         Q, c, A, b, Aeq, beq = problem
         _, stats = SolveQPCasOases(Q, c, A, b, Aeq, beq, x0=x0, return_stats=True, tolerance=tolerance)
-        stats["predict_time_seconds"] = predict_time
-        stats["wall_time_seconds"] = predict_time + stats["solve_time_seconds"]
+        stats["predict_time_seconds"] = predict_time_per_sample
+        stats["wall_time_seconds"] = predict_time_per_sample + stats["solve_time_seconds"]
         stats_list.append(stats)
     return stats_list
 
 
-def benchmark_osqp_with_model(problems, model, tolerance):
-    @tf.function(reduce_retracing=True)
-    def fast_predict(x):
-        return model(x, training=False)
-
-    dummy = flatten_sample(*problems[0]).reshape(1, -1).astype(np.float32)
-    fast_predict(tf.constant(dummy))
-
+def benchmark_osqp_with_warmstarts(problems, warm_starts, predict_time_per_sample, tolerance):
+    """
+    Benchmarkt OSQP met vooraf berekende warm starts.
+    predict_time_per_sample wordt toegevoegd aan elke stat zodat wall_time
+    de volledige kost (NN + solver) weerspiegelt.
+    """
     stats_list = []
-    for problem in problems:
-        sample = tf.constant(flatten_sample(*problem).reshape(1, -1).astype(np.float32))
-
-        predict_start = perf_counter()
-        x0 = fast_predict(sample).numpy()[0]
-        predict_time = perf_counter() - predict_start
-
+    for problem, x0 in zip(problems, warm_starts):
         Q, c, A, b, Aeq, beq = problem
         _, stats = SolveQP_OSQP(Q, c, A, b, Aeq, beq, x0=x0, return_stats=True, tolerance=tolerance)
-        stats["predict_time_seconds"] = predict_time
-        stats["wall_time_seconds"] = predict_time + stats["solve_time_seconds"]
+        stats["predict_time_seconds"] = predict_time_per_sample
+        stats["wall_time_seconds"] = predict_time_per_sample + stats["solve_time_seconds"]
         stats_list.append(stats)
     return stats_list
 
@@ -190,6 +200,11 @@ def main(k=1):
     print("Train neuraal netwerk voor warm start...")
     model = train_warm_start_model(X, y, n, m, k, epochs=epochs, batch_size=batch_size)
 
+    # Bereken NN warm starts één keer, gedeeld door beide NN-benchmarks
+    print("Bereken NN warm starts (één gedeelde batch-predict pass)...")
+    nn_warm_starts, predict_time_per_sample = compute_nn_warm_starts(problems, model)
+    print(f"  Gemiddelde predict tijd per sample: {predict_time_per_sample * 1000:.4f} ms")
+
     rng = np.random.default_rng(seed + 1)
     random_warm_starts = rng.uniform(-3.0, 3.0, size=(samples, n))
 
@@ -199,11 +214,15 @@ def main(k=1):
     print("Benchmark OSQP met random startgok...")
     osqp_random_stats = benchmark_osqp(problems, random_warm_starts, tolerance=oases_comparison_tolerance)
 
-    print("Benchmark qpOASES met neural network warm start, 1 QP per predict-call...")
-    nn_stats = benchmark_oases_with_model(problems, model, tolerance=oases_comparison_tolerance)
+    print("Benchmark qpOASES met neural network warm start...")
+    nn_stats = benchmark_oases_with_warmstarts(
+        problems, nn_warm_starts, predict_time_per_sample, tolerance=oases_comparison_tolerance
+    )
 
-    print("Benchmark OSQP met neural network warm start, 1 QP per predict-call...")
-    osqp_nn_stats = benchmark_osqp_with_model(problems, model, tolerance=oases_comparison_tolerance)
+    print("Benchmark OSQP met neural network warm start...")
+    osqp_nn_stats = benchmark_osqp_with_warmstarts(
+        problems, nn_warm_starts, predict_time_per_sample, tolerance=oases_comparison_tolerance
+    )
 
     summaries = [
         summarize_stats("Interior point (IPOPT)", interior_stats),
