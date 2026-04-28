@@ -75,23 +75,25 @@ def benchmark_with_model(problems, model, tolerance,type = 'OSQP'):
 
         Q, c, A, b, Aeq, beq = problem
         if type == 'OSQP':
-            _, stats = SolveQP_OSQP(
+            sol , stats = SolveQP_OSQP(
                 Q, c, A, b, Aeq, beq,
                 x0=x0,
                 return_stats=True,
                 tolerance=tolerance,
             )
         if type == 'qpOASES':
-            _, stats = SolveQPCasOases(
+            sol, stats = SolveQPCasOases(
             Q, c, A, b, Aeq, beq,
             x0=x0,
             return_stats=True,
             tolerance=tolerance,
         )
+        error = sol-x0
 
 
         stats["predict_time_seconds"] = predict_time
         stats["wall_time_seconds"] = predict_time + stats["solve_time_seconds"]
+        stats["error"] = error
         stats_list.append(stats)
 
     return stats_list
