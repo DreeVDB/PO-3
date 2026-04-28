@@ -286,8 +286,8 @@ def run_experiment_osqp(
 # ============================================================
 
 def main():
-    size = 4
-    ineq=4
+    size = 2
+    ineq=3
     sample_list = [100]  
     epoch_list = [15] 
     batch_list = [32]
@@ -320,7 +320,7 @@ def main():
                         )
                         results_oases.append(summary1)
 
-                        summary2 = run_experiment_oases(
+                        summary2 = run_experiment_osqp(
                             samples=samples,
                             epochs=epochs,
                             batch_size=batch,
@@ -339,15 +339,16 @@ def main():
     for k, v in best.items():
         print(f"  {k}: {v}")
     plot_results(results_oases,'qpOASES')
+    print("plot oases")
 
     print("\nResultaten osqp:\n")
-    print_summary_table(results_osqp)
 
-    best = min(results_osqp, key=lambda r: r["avg_time"])
-    print("\nBeste configuratie:")
-    for k, v in best.items():
-        print(f"  {k}: {v}")
+    print_summary_table(results_osqp)
+    print("result osqp")
+
+
     plot_results(results_osqp,"OSQP")
+    print("plot osqp")
 
 
 if __name__ == "__main__":
