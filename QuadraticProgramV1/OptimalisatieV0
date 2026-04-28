@@ -88,12 +88,20 @@ def benchmark_with_model(problems, model, tolerance,type = 'OSQP'):
             return_stats=True,
             tolerance=tolerance,
         )
-        error = sol-x0
+        absolute_error = [abs(sol[i] - x0[i]) for i in range(len(sol))]        
+        gemiddelde_absolute_error = mean(absolute_error)
+        erropercentage = [abs(sol[i] - x0[i]) / max(abs(sol[i]), 1e-6) * 100 for i in range(len(sol))]
+        gemiddelde_errorpercentage = mean(erropercentage)
+
 
 
         stats["predict_time_seconds"] = predict_time
         stats["wall_time_seconds"] = predict_time + stats["solve_time_seconds"]
-        stats["error"] = error
+        stats["absolute_error"] = absolute_error
+        stats["gemiddelde_absolute_error"] = gemiddelde_absolute_error
+        stats["errorpercentage"] = erropercentage  
+        stats["gemiddelde_errorpercentage"] = gemiddelde_errorpercentage
+
         stats_list.append(stats)
 
     return stats_list
@@ -109,6 +117,8 @@ def summarize_stats(name, stats_list):
     success_rate = 100.0 * mean(
         1.0 if stat["success"] else 0.0 for stat in stats_list
     )
+    avg_error = mean(stat["gemiddelde_absolute_error"] for stat in stats_list)
+    percentage_error = mean(stat["gemiddelde_errorpercentage"] for stat in stats_list)
 
     return {
         "name": name,
@@ -116,6 +126,8 @@ def summarize_stats(name, stats_list):
         "avg_time": avg_time,
         "avg_iter": avg_iter,
         "success_rate": success_rate,
+        "gemiddelde_absolute_error": avg_error,
+        "gemiddelde_errorpercentage": percentage_error,
     }
 
 
@@ -158,6 +170,22 @@ def plot_results(results, method):
     plt.title("Invloed van NN-hyperparameters op QP-oplostijd met " + method)
     plt.tight_layout()
     plt.show()
+
+def plot_error(results, method):
+    names = [r["name"] for r in results]
+    errors = [r["gemiddelde_absolute_error"] for r in results]
+
+    y_pos = range(len(names))
+
+    plt.figure()
+    plt.scatter(errors, y_pos)
+    plt.yticks(y_pos, names)
+    plt.xlabel("Gemiddelde absolute fout")
+    plt.ylabel("NN-configuratie")
+    plt.title("Invloed van NN-hyperparameters op gemiddelde absolute fout met " + method)
+    plt.tight_layout()
+    plt.show()
+
 
 
 
@@ -232,12 +260,12 @@ def run_experiment(
 # ============================================================
 
 def main():
-    size = 2
-    ineq=3
-    sample_list = [1000]  
-    epoch_list = [5*i for i in range(1,21)] 
+    size = 200
+    ineq=150
+    sample_list = [300]  
+    epoch_list = [25] 
     batch_list = [32]
-    layer_list = [3]
+    layer_list = [4,5,6,7,8]
     size_list = [64] 
 
     results_oases = []
@@ -275,11 +303,14 @@ def main():
     for k, v in best_oases.items():
         print(f"  {k}: {v}")
     plot_results(results_oases,'qpOASES')
+    plot_error(results_oases,'qpOASES')
     
 
     print("\nResultaten osqp:\n")
     print_summary_table(results_osqp)
     plot_results(results_osqp,'OSQP')
+    plot_error(results_osqp,'OSQP')
+
     
    
 
