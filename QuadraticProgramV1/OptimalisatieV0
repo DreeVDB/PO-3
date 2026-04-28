@@ -88,11 +88,16 @@ def benchmark_with_model(problems, model, tolerance,type = 'OSQP'):
             return_stats=True,
             tolerance=tolerance,
         )
+<<<<<<< Updated upstream
         absolute_error = [abs(sol[i] - x0[i]) for i in range(len(sol))]        
         gemiddelde_absolute_error = mean(absolute_error)
         erropercentage = [abs(sol[i] - x0[i]) / max(abs(sol[i]), 1e-6) * 100 for i in range(len(sol))]
         gemiddelde_errorpercentage = mean(erropercentage)
 
+=======
+            
+        error = sol-x0
+>>>>>>> Stashed changes
 
 
         stats["predict_time_seconds"] = predict_time
@@ -152,19 +157,16 @@ def print_summary_table(results):
 
 import matplotlib.pyplot as plt
 
-def plot_results(results, method):
+def plot_results(results,method):
     """
-    Plot de beste NN-configuraties op basis van gemiddelde totale oplostijd
-    als punten (scatter plot).
+    Plot de beste NN-configuraties op basis van gemiddelde totale oplostijd.
     """
+
     names = [r["name"] for r in results]
     times = [r["avg_time"] for r in results]
 
-    y_pos = range(len(names))
-
     plt.figure()
-    plt.scatter(times, y_pos)
-    plt.yticks(y_pos, names)
+    plt.barh(names, times)
     plt.xlabel("Gemiddelde totale oplostijd (s)")
     plt.ylabel("NN-configuratie")
     plt.title("Invloed van NN-hyperparameters op QP-oplostijd met " + method)
@@ -262,10 +264,17 @@ def run_experiment(
 def main():
     size = 200
     ineq=150
+<<<<<<< Updated upstream
     sample_list = [300]  
     epoch_list = [25] 
     batch_list = [32]
     layer_list = [4,5,6,7,8]
+=======
+    sample_list = [500]  
+    epoch_list = [10*i for i in range(1,11)] 
+    batch_list = [32]
+    layer_list = [5]
+>>>>>>> Stashed changes
     size_list = [64] 
 
     results_oases = []
