@@ -260,9 +260,9 @@ def main():
     size = 200
     ineq=150
     sample_list = [300]  
-    epoch_list = [25] 
+    epoch_list = [10*i for i in range(1, 11)] 
     batch_list = [32]
-    layer_list = [4,5,6,7,8]
+    layer_list = [5]
     size_list = [64] 
 
     results_oases = []
