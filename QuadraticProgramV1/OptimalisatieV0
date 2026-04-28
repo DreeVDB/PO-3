@@ -50,10 +50,10 @@ def build_benchmark_dataset(samples, n, m, k, seed=None, generation_tolerance=1e
 
 
 # ============================================================
-# Benchmark: qpOASES + NN warm start
+# Benchmark: qpOASES/OSQP + NN warm start
 # ============================================================
 
-def benchmark_oases_with_model(problems, model, tolerance):
+def benchmark_with_model(problems, model, tolerance,type = 'OSQP'):
     @tf.function(reduce_retracing=True)
     def fast_predict(x):
         return model(x, training=False)
@@ -74,45 +74,21 @@ def benchmark_oases_with_model(problems, model, tolerance):
         predict_time = perf_counter() - t0
 
         Q, c, A, b, Aeq, beq = problem
-        _, stats = SolveQPCasOases(
+        if type == 'OSQP':
+            _, stats = SolveQP_OSQP(
+                Q, c, A, b, Aeq, beq,
+                x0=x0,
+                return_stats=True,
+                tolerance=tolerance,
+            )
+        if type == 'qpOASES':
+            _, stats = SolveQPCasOases(
             Q, c, A, b, Aeq, beq,
             x0=x0,
             return_stats=True,
             tolerance=tolerance,
         )
 
-        stats["predict_time_seconds"] = predict_time
-        stats["wall_time_seconds"] = predict_time + stats["solve_time_seconds"]
-        stats_list.append(stats)
-
-    return stats_list
-def benchmark_osqp_with_model(problems, model, tolerance):
-    @tf.function(reduce_retracing=True)
-    def fast_predict(x):
-        return model(x, training=False)
-
-    # warm‑up (niet meten)
-    dummy = flatten_sample(*problems[0]).reshape(1, -1).astype(np.float32)
-    fast_predict(tf.constant(dummy))
-
-    stats_list = []
-
-    for problem in problems:
-        sample = tf.constant(
-            flatten_sample(*problem).reshape(1, -1).astype(np.float32)
-        )
-
-        t0 = perf_counter()
-        x0 = fast_predict(sample).numpy()[0]
-        predict_time = perf_counter() - t0
-
-        Q, c, A, b, Aeq, beq = problem
-        _, stats = SolveQP_OSQP(
-            Q, c, A, b, Aeq, beq,
-            x0=x0,
-            return_stats=True,
-            tolerance=tolerance,
-        )
 
         stats["predict_time_seconds"] = predict_time
         stats["wall_time_seconds"] = predict_time + stats["solve_time_seconds"]
@@ -160,16 +136,21 @@ def print_summary_table(results):
             f"{r['success_rate']:>14.2f}"
         )
 
-def plot_results(results,method):
-    """
-    Plot de beste NN-configuraties op basis van gemiddelde totale oplostijd.
-    """
+import matplotlib.pyplot as plt
 
+def plot_results(results, method):
+    """
+    Plot de beste NN-configuraties op basis van gemiddelde totale oplostijd
+    als punten (scatter plot).
+    """
     names = [r["name"] for r in results]
     times = [r["avg_time"] for r in results]
 
+    y_pos = range(len(names))
+
     plt.figure()
-    plt.barh(names, times)
+    plt.scatter(times, y_pos)
+    plt.yticks(y_pos, names)
     plt.xlabel("Gemiddelde totale oplostijd (s)")
     plt.ylabel("NN-configuratie")
     plt.title("Invloed van NN-hyperparameters op QP-oplostijd met " + method)
@@ -177,11 +158,12 @@ def plot_results(results,method):
     plt.show()
 
 
+
 # ============================================================
 # Eén experiment
 # ============================================================
 
-def run_experiment_oases(
+def run_experiment(
     samples,
     epochs,
     batch_size,
@@ -219,65 +201,27 @@ def run_experiment_oases(
         verbose=0,
     )
 
-    stats1 = benchmark_oases_with_model(
+    stats1 = benchmark_with_model(
         problems,
         model,
         tolerance=1e-5,
+        type='qpOASES'
+    )
+    stats2 = benchmark_with_model(
+        problems,
+        model,
+        tolerance=1e-5,
+        type='OSQP'
     )
 
     return summarize_stats(
         name=f"S{samples}_E{epochs}_B{batch_size}_L{n_layers}x{layer_size}",
         stats_list=stats1,
-    )
-
-def run_experiment_osqp(
-    samples,
-    epochs,
-    batch_size,
-    n_layers,
-    layer_size,
-    n,
-    m,
-    k=1,
-    seed=7,
-):
-    problems, X, y = build_benchmark_dataset(
-        samples=samples,
-        n=n,
-        m=m,
-        k=k,
-        seed=seed,
-    )
-
-    input_dim = len(flatten_sample(*problems[0]))
-
-    model = build_model_test(
-    input_dim=input_dim,
-    n=n,
-    n_layers=n_layers,
-    layer_size=layer_size,
-    )
-
-
-    model.fit(
-        X,
-        y,
-        epochs=epochs,
-        batch_size=batch_size,
-        validation_split=0.1,
-        verbose=0,
-    )
-
-    stats1 = benchmark_osqp_with_model(
-        problems,
-        model,
-        tolerance=1e-5,
-    )
-
-    return summarize_stats(
+    ),summarize_stats(
         name=f"S{samples}_E{epochs}_B{batch_size}_L{n_layers}x{layer_size}",
-        stats_list=stats1,
+        stats_list=stats2,
     )
+
 
 
 
@@ -288,11 +232,11 @@ def run_experiment_osqp(
 def main():
     size = 2
     ineq=3
-    sample_list = [100]  
-    epoch_list = [15] 
+    sample_list = [1000]  
+    epoch_list = [5*i for i in range(1,21)] 
     batch_list = [32]
-    layer_list = [2,3]
-    size_list = [32,64] 
+    layer_list = [3]
+    size_list = [64] 
 
     results_oases = []
     results_osqp = []
@@ -309,7 +253,7 @@ def main():
                             f"layers={n_layers}x{layer_size}"
                         )
 
-                        summary1 = run_experiment_oases(
+                        summary1 , summary2 = run_experiment(
                             samples=samples,
                             epochs=epochs,
                             batch_size=batch,
@@ -319,37 +263,23 @@ def main():
                             m=ineq,
                         )
                         results_oases.append(summary1)
-
-                        summary2 = run_experiment_osqp(
-                            samples=samples,
-                            epochs=epochs,
-                            batch_size=batch,
-                            n_layers=n_layers,
-                            layer_size=layer_size,
-                            n=size,
-                            m=ineq,
-                        )
                         results_osqp.append(summary2)
 
     print("\nResultaten Oases:\n")
     print_summary_table(results_oases)
 
-    best = min(results_oases, key=lambda r: r["avg_time"])
+    best_oases = min(results_oases, key=lambda r: r["avg_time"])
     print("\nBeste configuratie:")
-    for k, v in best.items():
+    for k, v in best_oases.items():
         print(f"  {k}: {v}")
     plot_results(results_oases,'qpOASES')
-    print("plot oases")
+    
 
     print("\nResultaten osqp:\n")
-
     print_summary_table(results_osqp)
-    print("result osqp")
-
-
-    plot_results(results_osqp,"OSQP")
-    print("plot osqp")
-
+    plot_results(results_osqp,'OSQP')
+    
+   
 
 if __name__ == "__main__":
     main()
