@@ -160,7 +160,7 @@ def print_summary_table(results):
             f"{r['success_rate']:>14.2f}"
         )
 
-def plot_results(results):
+def plot_results(results,method):
     """
     Plot de beste NN-configuraties op basis van gemiddelde totale oplostijd.
     """
@@ -172,7 +172,7 @@ def plot_results(results):
     plt.barh(names, times)
     plt.xlabel("Gemiddelde totale oplostijd (s)")
     plt.ylabel("NN-configuratie")
-    plt.title("Invloed van NN-hyperparameters op QP-oplostijd")
+    plt.title("Invloed van NN-hyperparameters op QP-oplostijd met " + method)
     plt.tight_layout()
     plt.show()
 
@@ -338,7 +338,7 @@ def main():
     print("\nBeste configuratie:")
     for k, v in best.items():
         print(f"  {k}: {v}")
-    plot_results(results_oases)
+    plot_results(results_oases,'qpOASES')
 
     print("\nResultaten osqp:\n")
     print_summary_table(results_osqp)
@@ -347,7 +347,7 @@ def main():
     print("\nBeste configuratie:")
     for k, v in best.items():
         print(f"  {k}: {v}")
-    plot_results(results_osqp)
+    plot_results(results_osqp,"OSQP")
 
 
 if __name__ == "__main__":
