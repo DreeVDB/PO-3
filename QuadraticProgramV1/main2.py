@@ -1,4 +1,3 @@
-from pathlib import Path
 from statistics import mean
 from time import perf_counter
 
@@ -11,14 +10,12 @@ try:
     from QPGeneration import Generate_QP_dataset
     from SolveQPCasInt import SolveQPCasInt
     from SolveQP_OSQP import SolveQP_OSQP
-    from SolveQPCasOases import SolveQPCasOases
 except ModuleNotFoundError:
     from QuadraticProgramV1.main import flatten_sample
     from QuadraticProgramV1.NeuraalNetwerk import build_model
     from QuadraticProgramV1.QPGeneration import Generate_QP_dataset
     from QuadraticProgramV1.SolveQPCasInt import SolveQPCasInt
     from QuadraticProgramV1.SolveQP_OSQP import SolveQP_OSQP
-    from QuadraticProgramV1.SolveQPCasOases import SolveQPCasOases
 
 
 def build_benchmark_dataset(samples, n, m, k, seed=None, generation_tolerance=1e-10):
@@ -76,38 +73,12 @@ def benchmark_interior(problems, tolerance):
     return stats_list
 
 
-def benchmark_oases(problems, initial_guesses, tolerance):
-    stats_list = []
-    for problem, x0 in zip(problems, initial_guesses):
-        Q, c, A, b, Aeq, beq = problem
-        _, stats = SolveQPCasOases(Q, c, A, b, Aeq, beq, x0=x0, return_stats=True, tolerance=tolerance)
-        stats["wall_time_seconds"] = stats["solve_time_seconds"]
-        stats_list.append(stats)
-    return stats_list
-
-
 def benchmark_osqp(problems, initial_guesses, tolerance):
     stats_list = []
     for problem, x0 in zip(problems, initial_guesses):
         Q, c, A, b, Aeq, beq = problem
         _, stats = SolveQP_OSQP(Q, c, A, b, Aeq, beq, x0=x0, return_stats=True, tolerance=tolerance)
         stats["wall_time_seconds"] = stats["solve_time_seconds"]
-        stats_list.append(stats)
-    return stats_list
-
-
-def benchmark_oases_with_warmstarts(problems, warm_starts, predict_time_per_sample, tolerance):
-    """
-    Benchmarkt qpOASES met vooraf berekende warm starts.
-    predict_time_per_sample wordt toegevoegd aan elke stat zodat wall_time
-    de volledige kost (NN + solver) weerspiegelt.
-    """
-    stats_list = []
-    for problem, x0 in zip(problems, warm_starts):
-        Q, c, A, b, Aeq, beq = problem
-        _, stats = SolveQPCasOases(Q, c, A, b, Aeq, beq, x0=x0, return_stats=True, tolerance=tolerance)
-        stats["predict_time_seconds"] = predict_time_per_sample
-        stats["wall_time_seconds"] = predict_time_per_sample + stats["solve_time_seconds"]
         stats_list.append(stats)
     return stats_list
 
@@ -176,9 +147,9 @@ def main(k=1):
     epochs = 15
     batch_size = 64
     seed = 7
-    generation_tolerance = 1e-10
+    generation_tolerance = 1e-5
     interior_comparison_tolerance = 1
-    oases_comparison_tolerance = 1
+    osqp_comparison_tolerance = 1
 
     if k not in (0, 1):
         raise ValueError("k moet 0 of 1 zijn.")
@@ -200,46 +171,29 @@ def main(k=1):
     print("Train neuraal netwerk voor warm start...")
     model = train_warm_start_model(X, y, n, m, k, epochs=epochs, batch_size=batch_size)
 
-    # Bereken NN warm starts één keer, gedeeld door beide NN-benchmarks
-    print("Bereken NN warm starts (één gedeelde batch-predict pass)...")
+    print("Bereken NN warm starts (één batch-predict pass)...")
     nn_warm_starts, predict_time_per_sample = compute_nn_warm_starts(problems, model)
     print(f"  Gemiddelde predict tijd per sample: {predict_time_per_sample * 1000:.4f} ms")
 
     rng = np.random.default_rng(seed + 1)
     random_warm_starts = rng.uniform(-3.0, 3.0, size=(samples, n))
 
-    print("Benchmark qpOASES met random startgok...")
-    random_stats = benchmark_oases(problems, random_warm_starts, tolerance=oases_comparison_tolerance)
-
     print("Benchmark OSQP met random startgok...")
-    osqp_random_stats = benchmark_osqp(problems, random_warm_starts, tolerance=oases_comparison_tolerance)
-
-    print("Benchmark qpOASES met neural network warm start...")
-    nn_stats = benchmark_oases_with_warmstarts(
-        problems, nn_warm_starts, predict_time_per_sample, tolerance=oases_comparison_tolerance
-    )
+    osqp_random_stats = benchmark_osqp(problems, random_warm_starts, tolerance=osqp_comparison_tolerance)
 
     print("Benchmark OSQP met neural network warm start...")
     osqp_nn_stats = benchmark_osqp_with_warmstarts(
-        problems, nn_warm_starts, predict_time_per_sample, tolerance=oases_comparison_tolerance
+        problems, nn_warm_starts, predict_time_per_sample, tolerance=osqp_comparison_tolerance
     )
 
     summaries = [
         summarize_stats("Interior point (IPOPT)", interior_stats),
-        summarize_stats("qpOASES random warm start", random_stats),
-        summarize_stats("qpOASES NN warm start", nn_stats),
         summarize_stats("OSQP random warm start", osqp_random_stats),
         summarize_stats("OSQP NN warm start", osqp_nn_stats),
     ]
 
     print()
     print_summary_table(summaries)
-
-    model_path = Path(__file__).resolve().parent / f"quadratic_model_n{n}_m{m}_k{k}.keras"
-    model.save(model_path)
-    print()
-    print(f"Model opgeslagen naar {model_path}")
-
 
 if __name__ == "__main__":
     main(k=1)
