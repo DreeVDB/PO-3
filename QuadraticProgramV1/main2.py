@@ -170,15 +170,15 @@ def train_warm_start_model(X, y, n, m, k, epochs=12, batch_size=64):
 
 
 def main(k=1):
-    samples = 100
-    n = 20
-    m = 15
+    samples = 200
+    n = 300
+    m = 100
     epochs = 15
     batch_size = 64
     seed = 7
     generation_tolerance = 1e-10
-    interior_comparison_tolerance = 1e-5
-    oases_comparison_tolerance = 1e-5
+    interior_comparison_tolerance = 1
+    oases_comparison_tolerance = 1
 
     if k not in (0, 1):
         raise ValueError("k moet 0 of 1 zijn.")

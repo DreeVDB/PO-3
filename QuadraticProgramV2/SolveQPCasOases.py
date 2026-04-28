@@ -80,7 +80,19 @@ def _build_solver(n, m, k, tolerance):
     return cached
 
 
-def SolveQPCasOases(Q, c, A, b, Aeq, beq, x0=None, return_stats=False, tolerance=1e-5):
+def SolveQPCasOases(
+    Q,
+    c,
+    A,
+    b,
+    Aeq,
+    beq,
+    x0=None,
+    lam_x0=None,
+    lam_g0=None,
+    return_stats=False,
+    tolerance=1e-5,
+):
     Q = np.array(Q, dtype=float)
     c = np.array(c, dtype=float)
     A = np.array(A, dtype=float)
@@ -102,6 +114,10 @@ def SolveQPCasOases(Q, c, A, b, Aeq, beq, x0=None, return_stats=False, tolerance
     }
     if x0 is not None:
         solver_inputs["x0"] = np.array(x0, dtype=float)
+    if lam_x0 is not None:
+        solver_inputs["lam_x0"] = np.array(lam_x0, dtype=float)
+    if lam_g0 is not None:
+        solver_inputs["lam_g0"] = np.array(lam_g0, dtype=float)
 
     start_time = perf_counter()
     sol = solver(**solver_inputs)

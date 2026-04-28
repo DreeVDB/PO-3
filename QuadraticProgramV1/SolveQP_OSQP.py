@@ -57,6 +57,7 @@ def SolveQP_OSQP(Q, c, A, b, Aeq, beq, x0=None, return_stats=False, tolerance=1e
         verbose=False,
         eps_abs=float(tolerance),
         eps_rel=float(tolerance),
+        check_termination=1,
         polish=False,
     )
     if x0 is not None:
