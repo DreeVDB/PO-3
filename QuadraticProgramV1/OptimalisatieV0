@@ -227,13 +227,6 @@ def run_experiment(
         validation_split=0.1,
         verbose=0,
     )
-
-    stats1 = benchmark_with_model(
-        problems,
-        model,
-        tolerance=1e-5,
-        type='qpOASES'
-    )
     stats2 = benchmark_with_model(
         problems,
         model,
@@ -242,9 +235,6 @@ def run_experiment(
     )
 
     return summarize_stats(
-        name=f"S{samples}_E{epochs}_B{batch_size}_L{n_layers}x{layer_size}",
-        stats_list=stats1,
-    ),summarize_stats(
         name=f"S{samples}_E{epochs}_B{batch_size}_L{n_layers}x{layer_size}",
         stats_list=stats2,
     )
@@ -260,16 +250,11 @@ def main():
     size = 200
     ineq=150
     sample_list = [300]  
-<<<<<<< Updated upstream
-    epoch_list = [25] 
-=======
-    epoch_list = [10*i for i in range(7, 16)] 
->>>>>>> Stashed changes
+    epoch_list = [10*i for i in range(7, 13)] 
     batch_list = [32]
-    layer_list = [4,5,6,7,8]
+    layer_list = [6]
     size_list = [64] 
 
-    results_oases = []
     results_osqp = []
 
     for samples in sample_list:
@@ -284,7 +269,7 @@ def main():
                             f"layers={n_layers}x{layer_size}"
                         )
 
-                        summary1 , summary2 = run_experiment(
+                        summary2 = run_experiment(
                             samples=samples,
                             epochs=epochs,
                             batch_size=batch,
@@ -293,18 +278,7 @@ def main():
                             n=size,
                             m=ineq,
                         )
-                        results_oases.append(summary1)
                         results_osqp.append(summary2)
-
-    print("\nResultaten Oases:\n")
-    print_summary_table(results_oases)
-
-    best_oases = min(results_oases, key=lambda r: r["avg_time"])
-    print("\nBeste configuratie:")
-    for k, v in best_oases.items():
-        print(f"  {k}: {v}")
-    plot_results(results_oases,'qpOASES')
-    plot_error(results_oases,'qpOASES')
     
 
     print("\nResultaten osqp:\n")
