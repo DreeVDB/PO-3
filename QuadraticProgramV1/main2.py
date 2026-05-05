@@ -7,7 +7,7 @@ import tensorflow as tf
 try:
     from main import flatten_sample
     from NeuraalNetwerk import build_model
-    from QPGeneration import Generate_QP_dataset
+    from QuadraticProgramV2.QPGeneration import Generate_QP_dataset
     from SolveQPCasInt import SolveQPCasInt
     from SolveQP_OSQP import SolveQP_OSQP
 except ModuleNotFoundError:
@@ -134,22 +134,40 @@ def print_summary_table(summaries):
         )
 
 
-def train_warm_start_model(X, y, n, m, k, epochs=12, batch_size=64):
-    model = build_model(n, m, k)
+def train_warm_start_model(
+    X,
+    y,
+    n,
+    m,
+    k,
+    epochs=12,
+    batch_size=64,
+    aantal_layers=4,
+    aantal_nodes=128,
+):
+    model = build_model(
+        n,
+        m,
+        k,
+        aantal_layers=aantal_layers,
+        aantal_nodes=aantal_nodes,
+    )
     model.fit(X, y, epochs=epochs, batch_size=batch_size, validation_split=0.1, verbose=0)
     return model
 
 
 def main(k=1):
-    samples = 200
-    n = 300
-    m = 100
+    samples = 300
+    n = 200
+    m = 50
     epochs = 15
     batch_size = 64
     seed = 7
     generation_tolerance = 1e-5
-    interior_comparison_tolerance = 1
-    osqp_comparison_tolerance = 1
+    interior_comparison_tolerance = 100
+    osqp_comparison_tolerance = 10
+    aantal_layers = 4
+    aantal_nodes = 128
 
     if k not in (0, 1):
         raise ValueError("k moet 0 of 1 zijn.")
@@ -169,7 +187,17 @@ def main(k=1):
     interior_stats = benchmark_interior(problems, tolerance=interior_comparison_tolerance)
 
     print("Train neuraal netwerk voor warm start...")
-    model = train_warm_start_model(X, y, n, m, k, epochs=epochs, batch_size=batch_size)
+    model = train_warm_start_model(
+        X,
+        y,
+        n,
+        m,
+        k,
+        epochs=epochs,
+        batch_size=batch_size,
+        aantal_layers=aantal_layers,
+        aantal_nodes=aantal_nodes,
+    )
 
     print("Bereken NN warm starts (één batch-predict pass)...")
     nn_warm_starts, predict_time_per_sample = compute_nn_warm_starts(problems, model)

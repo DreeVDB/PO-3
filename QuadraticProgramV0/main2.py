@@ -7,13 +7,13 @@ import numpy as np
 try:
     from QuadraticProgramV1.main import flatten_sample
     from NeuraalNetwerk import build_model
-    from QPGeneration import Generate_QP_dataset
+    from QuadraticProgramV2.QPGeneration import Generate_QP_dataset
     from SolveQPCasInt import SolveQPCasInt
     from SolveQPCasOases import SolveQPCasOases
 except ModuleNotFoundError:
     from QuadraticProgramV1.main import flatten_sample
     from NeuraalNetwerk import build_model
-    from QPGeneration import Generate_QP_dataset
+    from QuadraticProgramV2.QPGeneration import Generate_QP_dataset
     from SolveQPCasInt import SolveQPCasInt
     from SolveQPCasOases import SolveQPCasOases
 

@@ -5,10 +5,10 @@ from keras import layers
 import numpy as np
 
 try:
-    from QPGeneration import Generate_QP_dataset
+    from QuadraticProgramV2.QPGeneration import Generate_QP_dataset
     from NeuraalNetwerk import build_model
 except ModuleNotFoundError:
-    from QPGeneration import Generate_QP_dataset
+    from QuadraticProgramV2.QPGeneration import Generate_QP_dataset
     from NeuraalNetwerk import build_model
 
 

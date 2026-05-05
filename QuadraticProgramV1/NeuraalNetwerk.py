@@ -3,7 +3,7 @@ from keras import layers
 import qpsolvers
 import numpy as np
 
-def build_model(n, m, k, hidden_layers=None):
+def build_model(n, m, k, hidden_layers=None, aantal_layers=4, aantal_nodes=128):
     # Het netwerk krijgt alle QP-parameters als één platte vector:
     #   Q   : n×n matrix  → n²  waarden
     #   c   : n vector    → n   waarden
@@ -14,7 +14,11 @@ def build_model(n, m, k, hidden_layers=None):
     # Totaal: n² + n + m·n + m + k·n + k
     input_size = n**2 + n + m*n + m + k*n + k
     if hidden_layers is None:
-        hidden_layers = [128, 128, 128, 64]
+        if aantal_layers < 1:
+            raise ValueError("aantal_layers moet minstens 1 zijn.")
+        if aantal_nodes < 1:
+            raise ValueError("aantal_nodes moet minstens 1 zijn.")
+        hidden_layers = [aantal_nodes] * aantal_layers
     model = keras.Sequential([
         layers.Input(shape=(input_size,)),
         *[layers.Dense(width, activation="relu") for width in hidden_layers],
